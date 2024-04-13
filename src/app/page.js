@@ -1,113 +1,533 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState, useEffect, useRef } from "react";
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import Grid from '@mui/material/Grid';
+import Paper from '@mui/material/Paper';
+import { ThemeProvider, createTheme } from "@mui/material/styles";
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormControl from '@mui/material/FormControl';
+import FormLabel from '@mui/material/FormLabel';
+import CheckBox from '@mui/material/Checkbox';
+
+const musicFilePrefix = "";
+
+import localFont from "next/font/local";
+const inter = localFont({ 
+  src: [{
+    path: './yumin.ttf',
+    weight: 'normal',
+  }],
+});
+
+const darkTheme = createTheme({
+  palette: {
+    mode: "dark",
+  },
+  typography: {
+    fontFamily: inter
+  }
+});
+
+function randomlyPermutePlayOrder(playOrder) {
+  let newPlayOrder = playOrder.slice();
+  for (let i = newPlayOrder.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newPlayOrder[i], newPlayOrder[j]] = [newPlayOrder[j], newPlayOrder[i]];
+  }
+  return newPlayOrder;
+}
 
 export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+  const [isLoading, setIsloading] = useState(true);
+  const [data, setData] = useState({});
+  const [playOrder, setPlayOrder] = useState([]);
+  const [currentPlayingId, setCurrentPlayingId] = useState(0);
+  const [tagsBanned, setTagsBanned] = useState({});
+  const [cardIds, setCardIds] = useState({});
+  const [musicIds, setMusicIds] = useState({});
+  const [playLength, setPlayLength] = useState(0); // seconds
+  const [isRandomStart, setIsRandomStart] = useState(false);
+  const [pauseTimeout, setPauseTimeout] = useState(null);
+  const [haveInput, setHaveInput] = useState(false);
+
+  const audioPlayerRef = useRef(null);
+
+  function nextMusic() {
+    setHaveInput(true);
+    let newPlayingId = currentPlayingId;
+    // find the index of the currentPlayingId in playOrder
+    let index = playOrder.indexOf(currentPlayingId);
+    // if the currentPlayingId is not in playOrder
+    if (index === -1) {
+      newPlayingId = playOrder[0];
+    } else {
+      // if the currentPlayingId is the last element in playOrder
+      if (index === playOrder.length - 1) {
+        newPlayingId = playOrder[0];
+      } else {
+        newPlayingId = playOrder[index + 1];
+      }
+    }
+    setCurrentPlayingId(newPlayingId);
+    // force audio reload
+    audioPlayerRef.current.load();
+  }
+
+  function previousMusic() {
+    setHaveInput(true);
+    let newPlayingId = currentPlayingId;
+    // find the index of the currentPlayingId in playOrder
+    let index = playOrder.indexOf(currentPlayingId);
+    // if the currentPlayingId is not in playOrder
+    if (index === -1) {
+      newPlayingId = playOrder[0];
+    } else {
+      // if the currentPlayingId is the first element in playOrder
+      if (index === 0) {
+        newPlayingId = playOrder[playOrder.length - 1];
+      } else {
+        newPlayingId = playOrder[index - 1];
+      }
+    }
+    setCurrentPlayingId(newPlayingId);
+    // force audio reload
+    audioPlayerRef.current.load();
+  }
+
+  function onMusicLoaded() {
+    // if timeout is not null, clear it
+    if (pauseTimeout !== null) {
+      clearTimeout(pauseTimeout);
+    }
+    // get length of the audio
+    let audio = audioPlayerRef.current;
+    let duration = audio.duration;
+    // half the duration, we only take the first half
+    let halfDuration = duration / 2;
+    let selectableLength = halfDuration - playLength;
+    let startTime = 0;
+    if (selectableLength > 0 && isRandomStart) {
+      startTime = Math.random() * selectableLength;
+    }
+    audio.currentTime = startTime;
+    // start playing
+    if (haveInput) audio.play();
+    if (playLength > 0) {
+      let task = setTimeout(() => {
+        audio.pause();
+        setPauseTimeout(null);
+      }, playLength * 1000);
+      setPauseTimeout(task);
+    }
+  }
+
+  function getMusicName(character, musicId, withAlbum = false) {
+    let musicsList = data[character]["music"];
+    let musicName = "";
+    // if musicsList is a str, then musicId must be 0
+    if (typeof musicsList === 'string') {
+      if (musicId !== 0) {
+        musicId = 0;
+      }
+      musicName = musicsList;
+    } else {
+      musicName = musicsList[musicId];
+    }
+    let albumName = ""
+    if (withAlbum) {
+      // album is the string before first "/"
+      albumName = musicName.substring(0, musicName.indexOf('/'));
+    }
+    // get last "/" and last "."
+    // and take the between as musicName
+    if (musicName !== undefined) {
+      let lastSlash = musicName.lastIndexOf('/');
+      let lastDot = musicName.lastIndexOf('.');
+      musicName = musicName.substring(lastSlash + 1, lastDot);
+    }
+    // remove author
+    let authors = [
+      "黄昏フロンティア・上海アリス幻樂団",
+      "上海アリス幻樂団",
+      "ZUN",
+      "あきやまうに",
+      "黄昏フロンティア"
+    ]
+    for (let i = 0; i < authors.length; i++) {
+      let author = authors[i];
+      if (musicName.startsWith(author + " - ")) {
+        musicName = musicName.substring(author.length + 3);
+      }
+    }
+    // if starts with a number + ".", remove it
+    if (musicName.match(/^\d+\./)) {
+      musicName = musicName.substring(musicName.indexOf('.') + 1);
+      // if a space follows, remove it
+      if (musicName.startsWith(" ")) {
+        musicName = musicName.substring(1);
+      }
+    }
+    if (withAlbum) {
+      return musicName + " (" + albumName + ") ";
+    }
+    return musicName;
+  }
+
+  function getMusicUrl(character, musicId) {
+    let musicList = data[character]["music"];
+    let musicUrl = "";
+    // if musicsList is a str, then musicId must be 0
+    if (typeof musicList === 'string') {
+      musicUrl = musicList;
+    } else {
+      musicUrl = musicList[musicId];
+    }
+    return "/music/" + musicFilePrefix + musicUrl;
+  }
+
+  function reroll() {
+    setHaveInput(false);
+    let ids = []
+    Object.entries(data).forEach(([character, value]) => {
+      let tags = value["tags"];
+      // check if any tag in banned tags. if contain, skip
+      for (let i = 0; i < tags.length; i++) {
+        if (tagsBanned[tags[i]]) {
+          return;
+        }
+      }
+      ids.push(character);
+    });
+    // permute the ids
+    let permuted = randomlyPermutePlayOrder(ids);
+    setPlayOrder(permuted);
+    if (ids.length > 0) {
+      setCurrentPlayingId(permuted[0]);
+      // force audio reload
+      audioPlayerRef.current.load();
+    }
+  }
+
+  function renderCurrentPlaying() {
+    let character = currentPlayingId;
+    let musicId = musicIds[character];
+    let musicName = getMusicName(character, musicId);
+    let musicUrl = getMusicUrl(character, musicId);
+    let cards = []
+    let cardList = data[character]["card"];
+    if (typeof cardList === 'string') {
+      cards.push(cardList);
+    } else {
+      cards = cardList;
+    }
+    let cardComponents = []
+    for (let i = 0; i < cards.length; i++) {
+      let card = cards[i];
+      cardComponents.push(
+        // 30% of the width
+        <Paper key={card} variant="outlined"
+          sx={{
+            backgroundColor: "white",
+            width: "30%",
+            padding: 1,
+          }}>
+          <img key={card} 
+            src={"/cards/" + card} 
+            alt={card}
+            style={{width: "100%", height: "auto"}}
+          />
+        </Paper>
+      );
+    }
+    return (
+      <Box padding={2} align="center">
+        <Typography sx={{fontSize: "1.5em"}}>{musicName}</Typography>
+        <Typography sx={{fontSize: "1.2em"}}>{character}</Typography>
+        <Stack direction="row" spacing={2} padding={2} alignItems="center" justifyContent={"center"}>
+          {cardComponents}
+        </Stack>
+        <Box align="center">
+          <audio controls sx={{
+              width: "100%",
+            }} 
+            ref={audioPlayerRef}
+            onLoadedData={onMusicLoaded}
+
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+            <source src={musicUrl} type="audio/mpeg" />
+          </audio>
+        </Box>
+        <Stack direction="row" spacing={2} padding={2} alignItems="center" justifyContent={"center"}>
+          <Button onClick={previousMusic} variant="outlined" width="100">上一曲</Button>
+          <Button onClick={() => {
+            let audio = audioPlayerRef.current;
+            setHaveInput(true);
+            if (audio.paused) {
+              audio.play();
+            } else {
+              audio.pause();
+            }
+          }} variant="outlined" width="100">播放|暂停</Button>
+          <Button onClick={nextMusic} variant="outlined" width="100">下一曲</Button>
+        </Stack>
+        <Grid container paddingTop={2} alignItems="center" justifyContent={"center"}>
+          <Grid item xs={6}>
+            <TextField id="playLengthTextField" label="播放时长（0 = 无限）" variant="outlined" size="small"
+              style={{
+                fontFamily: "SimSun, Times New Roman, serif"
+              }}
+              value={playLength} 
+              onChange={(event) => setPlayLength(event.target.value)}
+              type="number"
+              // min is 0, max is 180, step is 0.25
+              inputProps={{min: 0, max: 180, step: 0.25}}
             />
-          </a>
-        </div>
-      </div>
+          </Grid>
+          <Grid item xs={6} fontFamily="SimSun, Times New Roman, serif">
+            <CheckBox
+              checked={isRandomStart}
+              onChange={(event) => setIsRandomStart(event.target.checked)}
+              inputProps={{ 'aria-label': 'controlled' }}
+            />
+            随机开始时间
+          </Grid>
+        </Grid>
+      </Box>
+    );
+  }
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
+  function renderPlayList() {
+    let items = []
+    for (let i = 0; i < playOrder.length; i++) {
+      let character = playOrder[i];
+      let musicId = musicIds[character];
+      let musicName = getMusicName(character, musicId);
+      let isPlaying = currentPlayingId === character;
+      items.push(
+        <ListItem key={character} sx={{
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          maxHeight: "1.5em",
+          textOverflow: "ellipsis",
+          backgroundColor: isPlaying ? "darkred" : "inherit",
+          fontWeight: isPlaying ? "bold" : "normal",
+        }}
+          onClick={() => {
+            setCurrentPlayingId(character)
+            // force audio reload
+            audioPlayerRef.current.load();
+          }}
+          cursor="pointer"
         >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+          {character} ({musicName})
+        </ListItem>
+      );
+    }
+    return <List sx={{
+      overflow: 'auto',
+      maxHeight: 500,
+    }}>{items}</List>;
+  }
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+  function renderMusicIdSelector() {
+    let selectors = []
+    Object.entries(data).forEach(([character, value]) => {
+      let musicList = value["music"];
+      if (musicList === undefined) {
+        return;
+      }
+      if ((typeof musicList === 'string') || (musicList.length === 1)) {
+        return;
+      }
+      let musicNames = []
+      for (let i = 0; i < musicList.length; i++) {
+        musicNames.push(getMusicName(character, i, true));
+      }
+      selectors.push(
+        <FormControl variant="outlined" key={character}>
+          <FormLabel>{character}</FormLabel>
+          <RadioGroup 
+            key={character} 
+            variant="outlined"
+            value={musicIds[character]} 
+            onChange={(event) => {
+              let newMusicIds = {}
+              for (let key in musicIds) {
+                newMusicIds[key] = musicIds[key];
+              }
+              newMusicIds[character] = event.target.value;
+              setMusicIds(newMusicIds);
+            }}
+          >
+            {musicNames.map((musicName, index) => {
+              return (
+                <FormControlLabel 
+                  key={index} 
+                  value={index} 
+                  control={<Radio />} 
+                  label={musicName}
+                  size="small"
+                  sx={{
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    height: "1.5em",
+                  }}
+                />
+              );
+            })}
+          </RadioGroup>
+        </FormControl>
+      );
+    });
+    return (
+      <Box maxHeight={500} overflow="auto" padding={2}>
+        <Stack spacing={2}>
+          <Typography variant="h6" fontFamily="SimSun, Times New Roman, serif">角色曲目选择</Typography>
+          {selectors}
+        </Stack>
+      </Box>
+    )
+  }
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
+  function renderBannedTagsSelector() {
+    // use checkboxes to select tags
+    let tagCheckboxes = []
+    for (let tag in tagsBanned) {
+      tagCheckboxes.push(
+        <FormControlLabel key={tag} control={
+          <CheckBox 
+            size="small"
+            checked={tagsBanned[tag]}
+            onChange={(event) => {
+              let newTagsBanned = {}
+              for (let key in tagsBanned) {
+                newTagsBanned[key] = tagsBanned[key];
+              }
+              newTagsBanned[tag] = event.target.checked;
+              setTagsBanned(newTagsBanned);
+            }}
+          />
+        } label={tag} />
+      );
+    }
+    return (
+      <Box maxHeight={500} overflow="auto" padding={2}>
+        <Typography variant="h6" fontFamily="SimSun, Times New Roman, serif">屏蔽部分Tag</Typography>
+        <Grid container spacing={2} padding={2}>
+          {tagCheckboxes}
+        </Grid>
+        <Button onClick={reroll} variant="outlined" width="100" style={{
+          fontFamily: "SimSun, Times New Roman, serif"
+        }}>重新抽选</Button>
+      </Box>
+    );
+  }
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  );
+  function renderAll() {
+    return (
+      <Grid container spacing={2} padding={2}>
+        
+        <Grid item xs={12} sm={6}>
+          <Stack spacing={2}>
+  
+            <Paper elevation={3} padding={2}>
+              {renderCurrentPlaying()}
+            </Paper>
+  
+            <Paper elevation={3} padding={2}>
+              <Box>
+                {renderMusicIdSelector()}
+              </Box>
+            </Paper>
+  
+          </Stack>
+        </Grid>
+  
+        <Grid item xs={12} sm={6}>
+          <Stack spacing={2}>
+  
+            <Paper elevation={3} padding={2}>
+              {renderPlayList()}
+            </Paper>
+  
+            <Paper elevation={3} padding={2}>
+              <Box>
+                {renderBannedTagsSelector()}
+              </Box>
+            </Paper>
+  
+          </Stack>
+        </Grid>
+      </Grid>
+    )
+  }
+
+  useEffect(() => {
+    // fetch data.json
+    if (!isLoading) return;
+    fetch('data.json')
+      .then(response => response.json())
+      .then(data => {
+        if (!isLoading) return;
+        // get the length of the dictionary
+        let characterCount = Object.keys(data).length;
+        // card Ids all set to 0 initially
+        let cardIds = {}
+        Object.entries(data).forEach(([key, value]) => {
+          cardIds[key] = 0;
+        });
+        // music ids all set to 0 initially
+        let musicIds = {}
+        Object.entries(data).forEach(([key, value]) => {
+          musicIds[key] = 0;
+        });
+        // play order
+        let playOrder = []
+        Object.entries(data).forEach(([key, value]) => {
+          playOrder.push(key);
+        });
+        // at start all tags are not banned
+        let tagsBanned = {}
+        Object.entries(data).forEach(([key, value]) => {
+          let tags = value["tags"];
+          if (tags === undefined) {
+            return;
+          }
+          for (let i = 0; i < tags.length; i++) {
+            tagsBanned[tags[i]] = false;
+          }
+        });
+        // set the state
+        setData(data);
+        setPlayOrder(playOrder);
+        setIsloading(false);
+        setCardIds(cardIds);
+        setMusicIds(musicIds);
+        setCurrentPlayingId(playOrder[0]);
+        setTagsBanned(tagsBanned);
+        audioPlayerRef.current.volume = 0.5;
+      })
+      .catch(error => console.error('Error:', error));
+  }, [isLoading, currentPlayingId]);
+
+  return (<ThemeProvider theme={darkTheme}>
+    <div>
+    {isLoading ? (
+      <p>Loading...</p>
+    ) : (
+      renderAll()
+    )} 
+    </div>
+  </ThemeProvider>);
 }
