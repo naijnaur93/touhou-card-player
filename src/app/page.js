@@ -380,7 +380,7 @@ export default function Home() {
           whiteSpace: "nowrap",
           overflow: "visible",
           maxHeight: "1.5em",
-        }}>
+        }} key={text}>
           {text}
         </ListItem>
         })}
