@@ -17,6 +17,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 import FormLabel from '@mui/material/FormLabel';
 import CheckBox from '@mui/material/Checkbox';
+import ButtonGroup from '@mui/material/ButtonGroup';
 
 const musicFilePrefix = "";
 
@@ -59,6 +60,8 @@ export default function Home() {
   const [isRandomStart, setIsRandomStart] = useState(false);
   const [pauseTimeout, setPauseTimeout] = useState(null);
   const [haveInput, setHaveInput] = useState(false);
+  const [idPresets, setIdPresets] = useState({});
+  const [idPresetHelp, setIdPresetHelp] = useState(null);
 
   const audioPlayerRef = useRef(null);
 
@@ -112,9 +115,7 @@ export default function Home() {
     // get length of the audio
     let audio = audioPlayerRef.current;
     let duration = audio.duration;
-    // half the duration, we only take the first half
-    let halfDuration = duration / 2;
-    let selectableLength = halfDuration - playLength;
+    let selectableLength = Math.max(Math.min(duration - 30, duration - playLength), 0);
     let startTime = 0;
     if (selectableLength > 0 && isRandomStart) {
       startTime = Math.random() * selectableLength;
@@ -335,12 +336,56 @@ export default function Home() {
     }
     return <List sx={{
       overflow: 'auto',
-      maxHeight: 500,
     }}>{items}</List>;
   }
 
   function renderMusicIdSelector() {
     let selectors = []
+    let presets = []
+    Object.entries(idPresets).forEach(([presetName, presetData]) => {
+      presets.push(
+        <Box margin={0.5}>
+          <ButtonGroup variant="outlined" key={presetName} aria-label="Basic button group">
+            <Button key={presetName} onClick={() => {
+              let newMusicIds = {}
+              for (let key in musicIds) {
+                newMusicIds[key] = musicIds[key];
+              }
+              for (let key in presetData) {
+                newMusicIds[key] = presetData[key];
+              }
+              setMusicIds(newMusicIds);
+              setIdPresetHelp(presetName);
+            }} variant="outlined" width="100" style={{
+              fontFamily: "SimSun, Times New Roman, serif"
+            }}>{presetName}</Button>
+            <Button key={presetName + "Help"} onClick={() => setIdPresetHelp(idPresetHelp === presetName ? null : presetName)} variant="outlined" width="100" style={{
+              fontFamily: "SimSun, Times New Roman, serif"
+            }}>?</Button>
+          </ButtonGroup>
+        </Box>
+      );
+    });
+    let idPresetHelpText = null;
+    if (idPresetHelp !== null) {
+      let preset = idPresets[idPresetHelp];
+      let textList = []
+      for (let key in preset) {
+        textList.push("・" + key + " ⇒ " + getMusicName(key, preset[key], true));
+      }
+      idPresetHelpText = <List sx={{
+      }}>
+        {textList.map((text) => {
+        return <ListItem sx={{
+          whiteSpace: "nowrap",
+          overflow: "visible",
+          maxHeight: "1.5em",
+        }}>
+          {text}
+        </ListItem>
+        })}
+      </List>;
+    }
     Object.entries(data).forEach(([character, value]) => {
       let musicList = value["music"];
       if (musicList === undefined) {
@@ -391,9 +436,14 @@ export default function Home() {
       );
     });
     return (
-      <Box maxHeight={500} overflow="auto" padding={2}>
+      <Box overflow="auto" padding={2}>
         <Stack spacing={2}>
-          <Typography variant="h6" fontFamily="SimSun, Times New Roman, serif">角色曲目选择</Typography>
+          <Typography variant="h6" fontFamily="SimSun, Times New Roman, serif">预设快速选择</Typography>
+          <Grid container spacing={2}>
+            {presets}
+          </Grid>
+          {idPresetHelpText}
+          <Typography variant="h6" fontFamily="SimSun, Times New Roman, serif">角色单曲选择</Typography>
           {selectors}
         </Stack>
       </Box>
@@ -422,7 +472,7 @@ export default function Home() {
       );
     }
     return (
-      <Box maxHeight={500} overflow="auto" padding={2}>
+      <Box overflow="auto" padding={2}>
         <Typography variant="h6" fontFamily="SimSun, Times New Roman, serif">屏蔽部分Tag</Typography>
         <Grid container spacing={2} padding={2}>
           {tagCheckboxes}
@@ -444,12 +494,11 @@ export default function Home() {
             <Paper elevation={3} padding={2}>
               {renderCurrentPlaying()}
             </Paper>
-  
+
             <Paper elevation={3} padding={2}>
-              <Box>
-                {renderMusicIdSelector()}
-              </Box>
+              {renderPlayList()}
             </Paper>
+
   
           </Stack>
         </Grid>
@@ -458,12 +507,14 @@ export default function Home() {
           <Stack spacing={2}>
   
             <Paper elevation={3} padding={2}>
-              {renderPlayList()}
-            </Paper>
-  
-            <Paper elevation={3} padding={2}>
               <Box>
                 {renderBannedTagsSelector()}
+              </Box>
+            </Paper>
+
+            <Paper elevation={3} padding={2}>
+              <Box>
+                {renderMusicIdSelector()}
               </Box>
             </Paper>
   
@@ -511,17 +562,22 @@ export default function Home() {
         // set the state
         setData(data);
         setPlayOrder(playOrder);
-        setIsloading(false);
         setCardIds(cardIds);
         setMusicIds(musicIds);
         setCurrentPlayingId(playOrder[0]);
         setTagsBanned(tagsBanned);
-        audioPlayerRef.current.volume = 0.5;
+        setIsloading(false);
+        // audioPlayerRef.current.volume = 0.5;
       })
       .catch(error => console.error('Error:', error));
+      fetch('idpresets.json')
+        .then(response => response.json())
+        .then(data => {
+          setIdPresets(data); 
+        })
   }, [isLoading, currentPlayingId]);
 
-  return (<ThemeProvider theme={darkTheme}>
+  return (<ThemeProvider theme={darkTheme}> 
     <div>
     {isLoading ? (
       <p>Loading...</p>
