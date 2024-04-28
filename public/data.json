@@ -163,6 +163,7 @@
         "music": [
             "東方妖々夢 ～ Perfect Cherry Blossom/上海アリス幻樂団 - 東方妖々夢　～ Ancient Temple.mp3",
             "東方妖々夢 ～ Perfect Cherry Blossom/上海アリス幻樂団 - 広有射怪鳥事　～ Till When？.mp3",
+            "東方妖々夢 ～ Perfect Cherry Blossom/上海アリス幻樂団 - アルティメットトゥルース.mp3",
             "幻想曲抜萃 ～ 東方萃夢想/DayDisc/12. 広有射怪鳥事 ～ Till When？.mp3",
             "幻想曲抜萃 ～ 東方萃夢想/NightDisc/12. 東方妖々夢 ～ Ancient Temple.mp3",
             "全人類ノ天楽録 ～ 東方緋想天/ArrangeDisc/06. 広有射怪鳥事 ～ Till When？.mp3",
@@ -174,7 +175,6 @@
         "card": "デフォルメ幽々子_0000.png",
         "music": [
             "東方妖々夢 ～ Perfect Cherry Blossom/上海アリス幻樂団 - 幽雅に咲かせ、墨染の桜　～ Border of Life.mp3",
-            "東方妖々夢 ～ Perfect Cherry Blossom/上海アリス幻樂団 - アルティメットトゥルース.mp3",
             "東方妖々夢 ～ Perfect Cherry Blossom/上海アリス幻樂団 - ボーダーオブライフ.mp3",
             "東方神霊廟 ～ Ten Desires/上海アリス幻樂団 - 死霊の夜桜.mp3",
             "東方神霊廟 ～ Ten Desires/上海アリス幻樂団 - ゴーストリード.mp3",
@@ -464,6 +464,8 @@
             "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 閉ざせし雲の通い路.mp3",
             "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 万年置き傘にご注意を.mp3",
             "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 夜空のユーフォーロマンス.mp3",
+            "東方神霊廟 ～ Ten Desires/上海アリス幻樂団 - 素敵な墓場で暮しましょ.mp3",
+            "伊弉諾物質 ～ Neo-traditionalism of Japan/10. 素敵な墓場で暮しましょ.mp3",
             "強欲な獣のムジカ/黄昏フロンティア - 万年置き傘にご注意を.mp3"
         ],
         "tags": ["星蓮船"]
@@ -483,7 +485,6 @@
         "card": "デフォルメ村紗_0000.png",
         "music": [
             "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - キャプテン・ムラサ.mp3",
-            "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 幽霊客船の時空を越えた旅.mp3",
             "強欲な獣のムジカ/黄昏フロンティア - キャプテンムラサ.mp3"
         ],
         "tags": ["星蓮船"]
@@ -497,7 +498,6 @@
         "card": "デフォルメ聖_0000.png",
         "music": [
             "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 感情の摩天楼　～ Cosmic Mind.mp3",
-            "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 法界の火.mp3",
             "暗黒能楽集・心綺楼/黄昏フロンティア・上海アリス幻樂団 - 感情の摩天楼　～ Cosmic Mind.mp3",
             "深秘的楽曲集/黄昏フロンティア・上海アリス幻樂団 - 感情の摩天楼　～ Cosmic Mind.mp3",
             "完全憑依ディスコグラフィ/あきやまうに - 法力の下の平等.mp3",
@@ -511,6 +511,7 @@
             "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 平安のエイリアン.mp3",
             "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 夜空のユーフォーロマンス.mp3",
             "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 幽霊客船の時空を越えた旅.mp3",
+            "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 法界の火.mp3",
             "東方神霊廟 ～ Ten Desires/上海アリス幻樂団 - 妖怪裏参道.mp3",
             "鳥船遺跡 ～ Trojan Green Asteroid/06. 夜空のユーフォーロマンス.mp3"
         ],
@@ -528,9 +529,7 @@
     "宮古芳香": {
         "card": "デフォルメ芳香_0000.png",
         "music": [
-            "東方神霊廟 ～ Ten Desires/上海アリス幻樂団 - リジッドパラダイス.mp3",
-            "東方神霊廟 ～ Ten Desires/上海アリス幻樂団 - 素敵な墓場で暮しましょ.mp3",
-            "伊弉諾物質 ～ Neo-traditionalism of Japan/10. 素敵な墓場で暮しましょ.mp3"
+            "東方神霊廟 ～ Ten Desires/上海アリス幻樂団 - リジッドパラダイス.mp3"
         ],
         "tags": ["神霊廟"]
     },
@@ -622,6 +621,7 @@
         "music": [
             "東方輝針城 ～ Double Dealing Character/上海アリス幻樂団 - リバースイデオロギー.mp3",
             "東方輝針城 ～ Double Dealing Character/上海アリス幻樂団 - 空中に沈む輝針城.mp3",
+            "東方輝針城 ～ Double Dealing Character/上海アリス幻樂団 - 針小棒大の天守閣.mp3",
             "旧約酒場 ～ Dateless Bar Old Adam/上海アリス幻樂団 - リバースイデオロギー.mp3",
             "燕石博物誌 ～ Dr.Latency's Freak Report/上海アリス幻樂団 - 空中に沈む輝針城.mp3"
         ],
@@ -631,7 +631,6 @@
         "card": "デフォルメ針妙丸_0000.png",
         "music": [
             "東方輝針城 ～ Double Dealing Character/上海アリス幻樂団 - 輝く針の小人族　～ Little Princess.mp3",
-            "東方輝針城 ～ Double Dealing Character/上海アリス幻樂団 - 針小棒大の天守閣.mp3",
             "深秘的楽曲集/黄昏フロンティア・上海アリス幻樂団 - 輝く針の小人族　～ Little Princess.mp3",
             "完全憑依ディスコグラフィ/あきやまうに - 落日に映える逆さ城.mp3"
         ],
