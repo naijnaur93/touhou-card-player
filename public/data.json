@@ -201,7 +201,8 @@
             "完全憑依ディスコグラフィ/上海アリス幻樂団 - 夜が降りてくる　～ Evening Star.mp3",
             "完全憑依ディスコグラフィ/上海アリス幻樂団 - 憑坐は夢と現の間に　～ Necro-Fantasia.mp3",
             "夢違科学世紀 ～ Changeability of Strange Dream/07. 夜が降りてくる ～ Evening Star.mp3",
-            "大空魔術 ～ Magical Astronomy/09. ネクロファンタジア.mp3"
+            "大空魔術 ～ Magical Astronomy/09. ネクロファンタジア.mp3",
+            "七夕坂夢幻能 ~ Taboo Japan Disentanglement/上海アリス幻樂団 - 憑坐は夢と現の間に 〜 Necro-Fantasia"
         ],
         "tags": ["妖々夢"]
     },
@@ -461,8 +462,8 @@
     "多々良小傘": {
         "card": "デフォルメ小傘_0000.png",
         "music": [
-            "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 閉ざせし雲の通い路.mp3",
             "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 万年置き傘にご注意を.mp3",
+            "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 閉ざせし雲の通い路.mp3",
             "東方星蓮船 ～ Undefined Fantastic Object/上海アリス幻樂団 - 夜空のユーフォーロマンス.mp3",
             "東方神霊廟 ～ Ten Desires/上海アリス幻樂団 - 素敵な墓場で暮しましょ.mp3",
             "伊弉諾物質 ～ Neo-traditionalism of Japan/10. 素敵な墓場で暮しましょ.mp3",
@@ -529,7 +530,8 @@
     "宮古芳香": {
         "card": "デフォルメ芳香_0000.png",
         "music": [
-            "東方神霊廟 ～ Ten Desires/上海アリス幻樂団 - リジッドパラダイス.mp3"
+            "東方神霊廟 ～ Ten Desires/上海アリス幻樂団 - リジッドパラダイス.mp3",
+            "伊弉諾物質 ～ Neo-traditionalism of Japan/10. 素敵な墓場で暮しましょ.mp3"
         ],
         "tags": ["神霊廟"]
     },
@@ -747,7 +749,9 @@
             "東方天空璋 ～ Hidden Star in Four Seasons/上海アリス幻樂団 - クレイジーバックダンサーズ.mp3",
             "東方天空璋 ～ Hidden Star in Four Seasons/上海アリス幻樂団 - 禁断の扉の向こうは、この世かあの世か.mp3",
             "東方天空璋 ～ Hidden Star in Four Seasons/上海アリス幻樂団 - 幻想のホワイトトラベラー.mp3",
-            "東方天空璋 ～ Hidden Star in Four Seasons/上海アリス幻樂団 - もうドアには入れない.mp3"
+            "東方天空璋 ～ Hidden Star in Four Seasons/上海アリス幻樂団 - もうドアには入れない.mp3",
+            "七夕坂夢幻能 ~ Taboo Japan Disentanglement/上海アリス幻樂団 - 禁断の扉の向こうは、この世かあの世か.mp3",
+            "七夕坂夢幻能 ~ Taboo Japan Disentanglement/上海アリス幻樂団 - クレイジーバックダンサーズ.mp3"
         ],
         "tags": ["天空璋"]
     },
@@ -757,7 +761,8 @@
             "東方天空璋 ～ Hidden Star in Four Seasons/上海アリス幻樂団 - 秘匿されたフォーシーズンズ.mp3",
             "東方天空璋 ～ Hidden Star in Four Seasons/上海アリス幻樂団 - イントゥ・バックドア.mp3",
             "東方天空璋 ～ Hidden Star in Four Seasons/上海アリス幻樂団 - もうドアには入れない.mp3",
-            "東方天空璋 ～ Hidden Star in Four Seasons/上海アリス幻樂団 - 秘神マターラ　～ Hidden Star in All Seasons..mp3"
+            "東方天空璋 ～ Hidden Star in Four Seasons/上海アリス幻樂団 - 秘神マターラ　～ Hidden Star in All Seasons..mp3",
+            "七夕坂夢幻能 ~ Taboo Japan Disentanglement/上海アリス幻樂団 - 秘匿されたフォーシーズンズ.mp3"
         ],
         "tags": ["天空璋"]
     },
@@ -766,7 +771,8 @@
         "card": "デフォルメ戎_0000.png",
         "music": [
             "東方鬼形獣 ～ Wily Beast and Weakest Creature/上海アリス幻樂団 - ジェリーストーン.mp3",
-            "東方鬼形獣 ～ Wily Beast and Weakest Creature/上海アリス幻樂団 - 地蔵だけが知る哀嘆.mp3"
+            "東方鬼形獣 ～ Wily Beast and Weakest Creature/上海アリス幻樂団 - 地蔵だけが知る哀嘆.mp3",
+            "七夕坂夢幻能 ~ Taboo Japan Disentanglement/上海アリス幻樂団 - 地蔵だけが知る哀嘆.mp3"
         ],
         "tags": ["鬼形獣"]
     },
@@ -839,7 +845,8 @@
         "card": "デフォルメ駒草_0000.png",
         "music": [
             "東方虹龍洞 ～ Unconnected Marketeers/上海アリス幻樂団 - スモーキングドラゴン.mp3",
-            "東方虹龍洞 ～ Unconnected Marketeers/上海アリス幻樂団 - 駒草咲くパーペチュアルスノー.mp3"
+            "東方虹龍洞 ～ Unconnected Marketeers/上海アリス幻樂団 - 駒草咲くパーペチュアルスノー.mp3",
+            "七夕坂夢幻能 ~ Taboo Japan Disentanglement/上海アリス幻樂団 - スモーキングドラゴン.mp3"
         ],
         "tags": ["虹龍洞"]
     },
