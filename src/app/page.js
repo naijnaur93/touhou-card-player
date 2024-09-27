@@ -18,6 +18,7 @@ import FormControl from '@mui/material/FormControl';
 import FormLabel from '@mui/material/FormLabel';
 import CheckBox from '@mui/material/Checkbox';
 import ButtonGroup from '@mui/material/ButtonGroup';
+import Divider from '@mui/material/Divider';
 
 const musicFilePrefix = "";
 
@@ -62,11 +63,20 @@ export default function Home() {
   const [haveInput, setHaveInput] = useState(false);
   const [idPresets, setIdPresets] = useState({});
   const [idPresetHelp, setIdPresetHelp] = useState(null);
+  const [playCountdown, setPlayCountdown] = useState(false);
+  const [playTimeout, setPlayTimeout] = useState(null);
+  const [gameSimulatorEnabled, setGameSimulatorEnabled] = useState(false);
 
   const audioPlayerRef = useRef(null);
+  const countdownPlayerRef = useRef(null);
 
-  function nextMusic() {
-    setHaveInput(true);
+  useEffect(() => {
+    if (audioPlayerRef.current === null) return;
+    audioPlayerRef.current.load();
+  }, [currentPlayingId]);
+
+  function playNextMusic() {
+    
     let newPlayingId = currentPlayingId;
     // find the index of the currentPlayingId in playOrder
     let index = playOrder.indexOf(currentPlayingId);
@@ -81,9 +91,30 @@ export default function Home() {
         newPlayingId = playOrder[index + 1];
       }
     }
+
+    setHaveInput(true);
     setCurrentPlayingId(newPlayingId);
-    // force audio reload
-    audioPlayerRef.current.load();
+  }
+
+  function nextMusic() {
+    if (playTimeout !== null) {
+      clearTimeout(pauseTimeout);
+    }
+
+    if (playCountdown) {
+      let asyncTask = function() {
+        playNextMusic();
+      }
+      if (audioPlayerRef.current !== null) {
+        audioPlayerRef.current.pause();
+      }
+      let timeout = setTimeout(asyncTask, 3000);
+      setPlayTimeout(timeout);
+      countdownPlayerRef.current.currentTime = 0;
+      countdownPlayerRef.current.play();
+    } else {
+      playNextMusic();
+    }
   }
 
   function previousMusic() {
@@ -263,7 +294,6 @@ export default function Home() {
             }} 
             ref={audioPlayerRef}
             onLoadedData={onMusicLoaded}
-
           >
             <source src={musicUrl} type="audio/mpeg" />
           </audio>
@@ -287,7 +317,7 @@ export default function Home() {
           </Button>
         </Stack>
         <Grid container paddingTop={2} alignItems="center" justifyContent={"center"}>
-          <Grid item xs={6}>
+          <Grid item xs={4}>
             <TextField id="playLengthTextField" label="播放时长（0 = 无限）" variant="outlined" size="small"
               className="chinese"
               value={playLength} 
@@ -297,13 +327,21 @@ export default function Home() {
               inputProps={{min: 0, max: 180, step: 0.25}}
             />
           </Grid>
-          <Grid item xs={6} className="chinese">
+          <Grid item xs={4} className="chinese">
             <CheckBox
               checked={isRandomStart}
               onChange={(event) => setIsRandomStart(event.target.checked)}
               inputProps={{ 'aria-label': 'controlled' }}
             />
-            随机开始时间
+            随机位置
+          </Grid>
+          <Grid item xs={4} className="chinese">
+            <CheckBox
+              checked={playCountdown}
+              onChange={(event) => setPlayCountdown(event.target.checked)}
+              inputProps={{ 'aria-label': 'controlled' }}
+            />
+            倒计时
           </Grid>
         </Grid>
       </Box>
@@ -347,7 +385,7 @@ export default function Home() {
     let presets = []
     Object.entries(idPresets).forEach(([presetName, presetData]) => {
       presets.push(
-        <Box margin={0.5}>
+        <Box margin={0.5} key={presetName}>
           <ButtonGroup variant="outlined" key={presetName} aria-label="Basic button group">
             <Button key={presetName} onClick={() => {
               let newMusicIds = {}
@@ -379,7 +417,7 @@ export default function Home() {
           whiteSpace: "nowrap",
           overflow: "visible",
           maxHeight: "1.5em",
-        }} key={text}>
+        }} key={text + "HelpText"}>
           {text}
         </ListItem>
         })}
@@ -437,12 +475,12 @@ export default function Home() {
     return (
       <Box overflow="auto" padding={2}>
         <Stack spacing={2}>
-          <Typography variant="h6" fontFamily="SimSun, Times New Roman, serif">预设快速选择</Typography>
+          <Typography variant="h6" class="chinese">预设快速选择</Typography>
           <Grid container spacing={2}>
             {presets}
           </Grid>
           {idPresetHelpText}
-          <Typography variant="h6" fontFamily="SimSun, Times New Roman, serif">角色单曲选择</Typography>
+          <Typography variant="h6" class="chinese">角色单曲选择</Typography>
           {selectors}
         </Stack>
       </Box>
@@ -480,10 +518,16 @@ export default function Home() {
     );
   }
 
-  function renderAll() {
+  function renderAllMusicPlayer() {
     return (
       <Grid container spacing={2} padding={2}>
         
+        <div display="none">
+          <audio ref={countdownPlayerRef}>
+            <source src="/Bell3.mp3" type="audio/mpeg" />
+          </audio>
+        </div>
+
         <Grid item xs={12} sm={6}>
           <Stack spacing={2}>
   
@@ -517,6 +561,38 @@ export default function Home() {
           </Stack>
         </Grid>
       </Grid>
+    )
+  }
+  
+  function renderGameSimulator() {
+    return <Grid container spacing={2} padding={2}>
+      <Grid item sm={12}>
+        <Stack spacing={2}>
+          <Paper elevation={3} padding={2}>
+            <CheckBox 
+              checked={gameSimulatorEnabled}
+              onChange={(event) => setGameSimulatorEnabled(event.target.checked)}
+              inputProps={{ 'aria-label': 'controlled' }}
+            />模拟器
+          </Paper>
+
+          {gameSimulatorEnabled ? <Paper elevation={3} padding={2}><Box padding={2}>
+            <Typography variant="h6" className="chinese">选择卡片</Typography>
+            <Typography variant="body1" className="chinese">从下面序列中选择</Typography>
+            
+            </Box></Paper> : <></>}
+        </Stack>
+      </Grid>
+    </Grid>
+  }
+
+  function renderAll() {
+
+    return (
+      <>
+          {renderAllMusicPlayer()}
+          {/* {renderGameSimulator()} */}
+      </>
     )
   }
 
