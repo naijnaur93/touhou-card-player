@@ -31,3 +31,7 @@ body {
     text-wrap: balance;
   }
 }
+
+.chinese {
+  font-family: sans-serif
+}

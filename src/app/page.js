@@ -269,7 +269,7 @@ export default function Home() {
           </audio>
         </Box>
         <Stack direction="row" spacing={2} padding={2} alignItems="center" justifyContent={"center"}>
-          <Button onClick={previousMusic} variant="outlined" width="100">上一曲</Button>
+          <Button onClick={previousMusic} variant="outlined" width="100" className="chinese">上一曲</Button>
           <Button onClick={() => {
             let audio = audioPlayerRef.current;
             setHaveInput(true);
@@ -278,23 +278,26 @@ export default function Home() {
             } else {
               audio.pause();
             }
-          }} variant="outlined" width="100">播放|暂停</Button>
-          <Button onClick={nextMusic} variant="outlined" width="100">下一曲</Button>
+          }} variant="outlined" width="100" className="chinese">播放|暂停</Button>
+          <Button onClick={nextMusic} variant="outlined" width="100" className="chinese">下一曲</Button>
+        </Stack>
+        <Stack direction="row" spacing={0} padding={0} alignItems="center" justifyContent={"center"}>
+          <Button onClick={reroll} variant="outlined" width="100" className="chinese">
+            重新抽选
+          </Button>
         </Stack>
         <Grid container paddingTop={2} alignItems="center" justifyContent={"center"}>
           <Grid item xs={6}>
             <TextField id="playLengthTextField" label="播放时长（0 = 无限）" variant="outlined" size="small"
-              style={{
-                fontFamily: "SimSun, Times New Roman, serif"
-              }}
+              className="chinese"
               value={playLength} 
               onChange={(event) => setPlayLength(event.target.value)}
-              type="number"
+              type="text"
               // min is 0, max is 180, step is 0.25
               inputProps={{min: 0, max: 180, step: 0.25}}
             />
           </Grid>
-          <Grid item xs={6} fontFamily="SimSun, Times New Roman, serif">
+          <Grid item xs={6} className="chinese">
             <CheckBox
               checked={isRandomStart}
               onChange={(event) => setIsRandomStart(event.target.checked)}
@@ -356,12 +359,8 @@ export default function Home() {
               }
               setMusicIds(newMusicIds);
               setIdPresetHelp(presetName);
-            }} variant="outlined" width="100" style={{
-              fontFamily: "SimSun, Times New Roman, serif"
-            }}>{presetName}</Button>
-            <Button key={presetName + "Help"} onClick={() => setIdPresetHelp(idPresetHelp === presetName ? null : presetName)} variant="outlined" width="100" style={{
-              fontFamily: "SimSun, Times New Roman, serif"
-            }}>?</Button>
+            }} variant="outlined" width="100" className="chinese">{presetName}</Button>
+            <Button key={presetName + "Help"} onClick={() => setIdPresetHelp(idPresetHelp === presetName ? null : presetName)} variant="outlined" width="100" className="chinese">?</Button>
           </ButtonGroup>
         </Box>
       );
@@ -473,13 +472,10 @@ export default function Home() {
     }
     return (
       <Box overflow="auto" padding={2}>
-        <Typography variant="h6" fontFamily="SimSun, Times New Roman, serif">屏蔽部分Tag</Typography>
+        <Typography variant="h6" className="chinese">屏蔽部分Tag</Typography>
         <Grid container spacing={2} padding={2}>
           {tagCheckboxes}
         </Grid>
-        <Button onClick={reroll} variant="outlined" width="100" style={{
-          fontFamily: "SimSun, Times New Roman, serif"
-        }}>重新抽选</Button>
       </Box>
     );
   }
