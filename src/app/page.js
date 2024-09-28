@@ -54,7 +54,6 @@ export default function Home() {
   const [data, setData] = useState({});
   const [playOrder, setPlayOrder] = useState([]);
   const [currentPlayingId, setCurrentPlayingId] = useState(0);
-  const [tagsBanned, setTagsBanned] = useState({});
   const [cardIds, setCardIds] = useState({});
   const [musicIds, setMusicIds] = useState({});
   const [playLength, setPlayLength] = useState(0); // seconds
@@ -77,23 +76,19 @@ export default function Home() {
 
   function playNextMusic() {
     
-    let newPlayingId = currentPlayingId;
     // find the index of the currentPlayingId in playOrder
     let index = playOrder.indexOf(currentPlayingId);
     // if the currentPlayingId is not in playOrder
     if (index === -1) {
-      newPlayingId = playOrder[0];
-    } else {
-      // if the currentPlayingId is the last element in playOrder
-      if (index === playOrder.length - 1) {
-        newPlayingId = playOrder[0];
-      } else {
-        newPlayingId = playOrder[index + 1];
-      }
+      index = 0;
+    }
+    index = (index + 1) % playOrder.length;
+    while (musicIds[playOrder[index]] === -1) {
+      index = (index + 1) % playOrder.length;
     }
 
     setHaveInput(true);
-    setCurrentPlayingId(newPlayingId);
+    setCurrentPlayingId(playOrder[index]);
   }
 
   function nextMusic() {
@@ -119,21 +114,13 @@ export default function Home() {
 
   function previousMusic() {
     setHaveInput(true);
-    let newPlayingId = currentPlayingId;
     // find the index of the currentPlayingId in playOrder
     let index = playOrder.indexOf(currentPlayingId);
-    // if the currentPlayingId is not in playOrder
-    if (index === -1) {
-      newPlayingId = playOrder[0];
-    } else {
-      // if the currentPlayingId is the first element in playOrder
-      if (index === 0) {
-        newPlayingId = playOrder[playOrder.length - 1];
-      } else {
-        newPlayingId = playOrder[index - 1];
-      }
+    index = (index - 1 + playOrder.length) % playOrder.length;
+    while (musicIds[playOrder[index]] === -1) {
+      index = (index - 1 + playOrder.length) % playOrder.length;
     }
-    setCurrentPlayingId(newPlayingId);
+    setCurrentPlayingId(playOrder[index]);
     // force audio reload
     audioPlayerRef.current.load();
   }
@@ -315,6 +302,7 @@ export default function Home() {
           <Button onClick={reroll} variant="outlined" width="100" className="chinese">
             重新抽选
           </Button>
+          
         </Stack>
         <Grid container paddingTop={2} alignItems="center" justifyContent={"center"}>
           <Grid item xs={4}>
@@ -353,6 +341,9 @@ export default function Home() {
     for (let i = 0; i < playOrder.length; i++) {
       let character = playOrder[i];
       let musicId = musicIds[character];
+      if (musicId === -1) {
+        continue;
+      }
       let musicName = getMusicName(character, musicId);
       let isPlaying = currentPlayingId === character;
       items.push(
@@ -397,6 +388,17 @@ export default function Home() {
               }
               setMusicIds(newMusicIds);
               setIdPresetHelp(presetName);
+              // if currentPlayingId is in the preset
+              if (currentPlayingId in presetData) {
+                // if it is not -1, reload the audio
+                if (presetData[currentPlayingId] === -1) {
+                  let index = (playOrder.indexOf(currentPlayingId) + 1) % playOrder.length;
+                  while (newMusicIds[playOrder[index]] === -1) {
+                    index = (index + 1) % playOrder.length;
+                  }
+                  setCurrentPlayingId(playOrder[index]);
+                }
+              }
             }} variant="outlined" width="100" className="chinese">{presetName}</Button>
             <Button key={presetName + "Help"} onClick={() => setIdPresetHelp(idPresetHelp === presetName ? null : presetName)} variant="outlined" width="100" className="chinese">?</Button>
           </ButtonGroup>
@@ -408,7 +410,11 @@ export default function Home() {
       let preset = idPresets[idPresetHelp];
       let textList = []
       for (let key in preset) {
-        textList.push("・" + key + " ⇒ " + getMusicName(key, preset[key], true));
+        let musicName = "移除";
+        if (preset[key] !== -1) {
+          musicName = getMusicName(key, preset[key], true);
+        }
+        textList.push("・" + key + " ⇒ " + musicName);
       }
       idPresetHelpText = <List sx={{
       }}>
@@ -428,8 +434,8 @@ export default function Home() {
       if (musicList === undefined) {
         return;
       }
-      if ((typeof musicList === 'string') || (musicList.length === 1)) {
-        return;
+      if (typeof musicList === 'string') {
+        musicList = [musicList];
       }
       let musicNames = []
       for (let i = 0; i < musicList.length; i++) {
@@ -447,8 +453,15 @@ export default function Home() {
               for (let key in musicIds) {
                 newMusicIds[key] = musicIds[key];
               }
-              newMusicIds[character] = event.target.value;
+              newMusicIds[character] = parseInt(event.target.value);
               setMusicIds(newMusicIds);
+              if (currentPlayingId === character && newMusicIds[character] === -1) {
+                let index = (playOrder.indexOf(character) + 1) % playOrder.length;
+                while (newMusicIds[playOrder[index]] === -1) {
+                  index = (index + 1) % playOrder.length;
+                }
+                setCurrentPlayingId(playOrder[index]);
+              }
             }}
           >
             {musicNames.map((musicName, index) => {
@@ -468,6 +481,19 @@ export default function Home() {
                 />
               );
             })}
+            <FormControlLabel 
+              key={-1} 
+              value={-1} 
+              control={<Radio />} 
+              label="移除"
+              size="small"
+              sx={{
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                height: "1.5em",
+              }}
+            />
           </RadioGroup>
         </FormControl>
       );
@@ -485,37 +511,6 @@ export default function Home() {
         </Stack>
       </Box>
     )
-  }
-
-  function renderBannedTagsSelector() {
-    // use checkboxes to select tags
-    let tagCheckboxes = []
-    for (let tag in tagsBanned) {
-      tagCheckboxes.push(
-        <FormControlLabel key={tag} control={
-          <CheckBox 
-            size="small"
-            checked={tagsBanned[tag]}
-            onChange={(event) => {
-              let newTagsBanned = {}
-              for (let key in tagsBanned) {
-                newTagsBanned[key] = tagsBanned[key];
-              }
-              newTagsBanned[tag] = event.target.checked;
-              setTagsBanned(newTagsBanned);
-            }}
-          />
-        } label={tag} />
-      );
-    }
-    return (
-      <Box overflow="auto" padding={2}>
-        <Typography variant="h6" className="chinese">屏蔽部分Tag</Typography>
-        <Grid container spacing={2} padding={2}>
-          {tagCheckboxes}
-        </Grid>
-      </Box>
-    );
   }
 
   function renderAllMusicPlayer() {
@@ -545,12 +540,6 @@ export default function Home() {
   
         <Grid item xs={12} sm={6}>
           <Stack spacing={2}>
-  
-            <Paper elevation={3} padding={2}>
-              <Box>
-                {renderBannedTagsSelector()}
-              </Box>
-            </Paper>
 
             <Paper elevation={3} padding={2}>
               <Box>
@@ -567,7 +556,7 @@ export default function Home() {
   function renderGameSimulator() {
     return <Grid container spacing={2} padding={2}>
       <Grid item sm={12}>
-        <Stack spacing={2}>
+        <Stack>
           <Paper elevation={3} padding={2}>
             <CheckBox 
               checked={gameSimulatorEnabled}
@@ -590,8 +579,12 @@ export default function Home() {
 
     return (
       <>
+        {renderGameSimulator()}
+        <div style={{
+          display: gameSimulatorEnabled ? "none" : "block",
+        }}>
           {renderAllMusicPlayer()}
-          {/* {renderGameSimulator()} */}
+        </div>  
       </>
     )
   }
@@ -637,16 +630,43 @@ export default function Home() {
         setCardIds(cardIds);
         setMusicIds(musicIds);
         setCurrentPlayingId(playOrder[0]);
-        setTagsBanned(tagsBanned);
         setIsloading(false);
         // audioPlayerRef.current.volume = 0.5;
+        
+        fetch('idpresets.json')
+        .then(response => response.json())
+        .then(fetchedData => {
+          let defaultPreset = {}
+          Object.entries(musicIds).forEach(([key, value]) => {
+            defaultPreset[key] = 0;
+          })
+          let presetsData = {}
+          presetsData["默认"] = defaultPreset;
+
+          Object.entries(fetchedData).forEach(([key, value]) => {
+            presetsData[key] = value;
+          })
+
+          Object.entries(tagsBanned).forEach(([tagName, value]) => {
+            let preset = {}
+            Object.entries(data).forEach(([key, value]) => {
+              let tags = value["tags"];
+              // check if any tag in banned tags. if contain, skip
+              for (let i = 0; i < tags.length; i++) {
+                if (tags[i] === tagName) {
+                  preset[key] = -1;
+                  break;
+                }
+              }
+            })
+            presetsData["屏蔽" + tagName] = preset;
+          })
+
+          setIdPresets(presetsData); 
+        })
+
       })
       .catch(error => console.error('Error:', error));
-      fetch('idpresets.json')
-        .then(response => response.json())
-        .then(data => {
-          setIdPresets(data); 
-        })
   }, [isLoading, currentPlayingId]);
 
   return (<ThemeProvider theme={darkTheme}> 
