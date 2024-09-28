@@ -276,7 +276,7 @@ export default function Home() {
         }
       }
       if (finished) {return;}
-      finished = true;
+      finished = gameLayoutRef.current.hasOpponent;
       for (let i = 0; i < gameLayoutRef.current.opponent.length; i++) {
         if (!gameStatsRef.current.opponentPicked[i]) {
           finished = false;
@@ -1126,6 +1126,7 @@ export default function Home() {
               },
               "correctFoundBy": 0,
             })
+            showAlert("游戏开始。第一次请点击“播放|暂停”，之后请点击“下一曲”。")
             reroll();
           }}
         >开始</Button>
@@ -1137,7 +1138,7 @@ export default function Home() {
           isPlayerFinished = false;
         }
       }
-      let isOpponentFinished = true;
+      let isOpponentFinished = gameLayout.hasOpponent;
       for (let i = 0; i < gameLayout.opponent.length; i++) {
         if (!gameStats.opponentPicked[i]) {
           isOpponentFinished = false;
