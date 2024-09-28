@@ -19,10 +19,12 @@ import FormLabel from '@mui/material/FormLabel';
 import CheckBox from '@mui/material/Checkbox';
 import ButtonGroup from '@mui/material/ButtonGroup';
 import Divider from '@mui/material/Divider';
+import Image from 'next/image';
 
 const musicFilePrefix = "";
 
 import localFont from "next/font/local";
+import { Alert, Collapse } from "@mui/material";
 const inter = localFont({ 
   src: [{
     path: './yumin.ttf',
@@ -65,14 +67,305 @@ export default function Home() {
   const [playCountdown, setPlayCountdown] = useState(false);
   const [playTimeout, setPlayTimeout] = useState(null);
   const [gameSimulatorEnabled, setGameSimulatorEnabled] = useState(false);
+  const [alertInfo, setAlertInfo] = useState({
+    "disappearTimeout": null,
+    "message": "",
+  })
+
+  function showAlert(message) {
+    if (alertInfo.disappearTimeout !== null) {
+      clearTimeout(alertInfo.disappearTimeout);
+    }
+    setAlertInfo({
+      "disappearTimeout": setTimeout(() => {
+        setAlertInfo({
+          "disappearTimeout": null,
+          "message": "",
+        })
+      }, 3000),
+      "message": message,
+    })
+  }
+  
+  // game states
+  const [gameLayout, setGameLayout] = useState({
+    "hasOpponent": false,
+    "columns": 10,
+    "rows": 3,
+    "opponent": [], // each item is (character, cardId)
+    "player": [],
+    "deckWidthPercentage": 70,
+  })
+  const [localRows, setLocalRows] = useState(gameLayout.rows);
+  const [localColumns, setLocalColumns] = useState(gameLayout.columns);
+  const [localDeckWidthPercentage, setLocalDeckWidthPercentage] = useState(gameLayout.deckWidthPercentage);
+  const [gameStats, setGameStats] = useState({
+    "started": false,
+    "opponentPicked": [],
+    "playerPicked": [],
+    "opponentObtained": [],
+    "playerObtained": [],
+    "mistaken": {
+      "opponent": [],
+      "player": [],
+    },
+    "correctFoundBy": 0, // 0: none, 1: player, 2: opponent
+  })
+  const [gameOpponentClickTimeout, setGameOpponentClickTimeout] = useState(null);
+  const [gameOpponentProperties, setGameOpponentProperties] = useState({
+    "average": 8,
+    "mistakeRate": 0.2,
+    "slowRate": 0.2,
+    "fastRate": 0.2,
+  })
+
+  function resetGameRoundStat() {
+    setGameStats({
+      ...gameStats,
+      "mistaken": {
+        "opponent": [],
+        "player": [],
+      },
+      "correctFoundBy": 0,
+    })
+  }
+  function finishCurrentRound() {
+    if (setGameOpponentClickTimeout !== null) {
+      clearTimeout(gameOpponentClickTimeout);
+      setGameOpponentClickTimeout(null);
+    }
+    let newGameStats = {...gameStats};
+    // check if current playing id is in the decks
+    let foundInPlayer = false;
+    let foundInOpponent = false;
+    for (let i = 0; i < gameLayout.player.length; i++) {
+      if (gameLayout.player[i][0] === currentPlayingId && !gameStats.playerPicked[i]) {
+        foundInPlayer = true;
+        newGameStats.playerPicked[i] = true;
+        if (gameStats.correctFoundBy === 1) {
+          newGameStats.playerObtained.push(gameLayout.player[i]);
+        } else if (gameStats.correctFoundBy === 2) {
+          newGameStats.opponentObtained.push(gameLayout.player[i]);
+        }
+      }
+    }
+    for (let i = 0; i < gameLayout.opponent.length; i++) {
+      if (gameLayout.opponent[i][0] === currentPlayingId && !gameStats.opponentPicked[i]) {
+        foundInOpponent = true;
+        newGameStats.opponentPicked[i] = true;
+        if (gameStats.correctFoundBy === 1) {
+          newGameStats.playerObtained.push(gameLayout.opponent[i]);
+        } else if (gameStats.correctFoundBy === 2) {
+          newGameStats.opponentObtained.push(gameLayout.opponent[i]);
+        }
+      }
+    }
+    if (gameLayout.hasOpponent) {
+      // to give or receive cards
+      let playerGive = gameStats.mistaken.opponent.length - gameStats.mistaken.player.length;
+      if (foundInPlayer && gameStats.correctFoundBy === 2) {playerGive -= 1;}
+      if (foundInOpponent && gameStats.correctFoundBy === 1) {playerGive += 1;}
+      // console.log("summing up ......................")
+      // console.log("opponentMistake", gameStats.mistaken.opponent.length, "playerMistake", gameStats.mistaken.player.length);
+      // console.log("foundInPlayer", foundInPlayer, "foundInOpponent", foundInOpponent);
+      // console.log("correctFoundBy", gameStats.correctFoundBy);
+      // console.log("playerGive", playerGive);
+      if (playerGive != 0) {
+        let playerDeck = gameLayout.player.slice();
+        let playerEmpties = [];
+        let playerAvailables = [];
+        let opponentDeck = gameLayout.opponent.slice();
+        let opponentEmpties = [];
+        let opponentAvailables = [];
+        for (let i = 0; i < playerDeck.length; i++) {
+          if (newGameStats.playerPicked[i]) {
+            playerEmpties.push(i);
+          } else {
+            playerAvailables.push(i);
+          }
+        }
+        for (let i = 0; i < opponentDeck.length; i++) {
+          if (newGameStats.opponentPicked[i]) {
+            opponentEmpties.push(i);
+          } else {
+            opponentAvailables.push(i);
+          }
+        }
+        
+        // console.log("foundInPlayer", foundInPlayer, "foundInOpponent", foundInOpponent);
+        // console.log("playerEmpties", playerEmpties);
+        // console.log("playerAvailables", playerAvailables);
+        // console.log("opponentEmpties", opponentEmpties);
+        // console.log("opponentAvailables", opponentAvailables);
+        // console.log("playerDeck", playerDeck);
+        // console.log("opponentDeck", opponentDeck);
+
+        while (playerGive > 0 && opponentEmpties.length > 0 && playerAvailables.length > 0) {
+          let giveId = Math.floor(Math.random() * playerAvailables.length);
+          let receiveId = Math.floor(Math.random() * opponentEmpties.length);
+          let giveIndex = playerAvailables[giveId];
+          let receiveIndex = opponentEmpties[receiveId];
+          opponentDeck[receiveIndex] = playerDeck[giveIndex];
+          newGameStats.playerPicked[giveIndex] = true;
+          newGameStats.opponentPicked[receiveIndex] = false;
+          playerGive -= 1;
+          playerAvailables.splice(giveId, 1);
+          opponentEmpties.splice(receiveId, 1);
+        }
+        while (playerGive < 0 && playerEmpties.length > 0 && opponentAvailables.length > 0) {
+          let giveId = Math.floor(Math.random() * opponentAvailables.length);
+          let receiveId = Math.floor(Math.random() * playerEmpties.length);
+          let giveIndex = opponentAvailables[giveId];
+          let receiveIndex = playerEmpties[receiveId];
+          playerDeck[receiveIndex] = opponentDeck[giveIndex];
+          newGameStats.opponentPicked[giveIndex] = true;
+          newGameStats.playerPicked[receiveIndex] = false;
+          playerGive += 1;
+          opponentAvailables.splice(giveId, 1);
+          playerEmpties.splice(receiveId, 1);
+        }
+        setGameLayout({
+          ...gameLayout,
+          "player": playerDeck,
+          "opponent": opponentDeck,
+        })
+      }
+    }
+    setGameStats({
+      ...newGameStats,
+      "mistaken": {
+        "opponent": [],
+        "player": [],
+      },
+      "correctFoundBy": 0,
+    })
+  }
 
   const audioPlayerRef = useRef(null);
   const countdownPlayerRef = useRef(null);
+  const gameStatsRef = useRef(gameStats);
+  const gameLayoutRef = useRef(gameLayout);
+
+  useEffect(() => {
+    gameStatsRef.current = gameStats;
+    gameLayoutRef.current = gameLayout;
+  }, [gameStats, gameLayout]);
+
 
   useEffect(() => {
     if (audioPlayerRef.current === null) return;
     audioPlayerRef.current.load();
   }, [currentPlayingId]);
+
+  function opponentClick(currentPlayingId) {
+    if (setGameOpponentClickTimeout !== null) {
+      clearTimeout(gameOpponentClickTimeout);
+      setGameOpponentClickTimeout(null);
+    }
+    // if player has already found, return
+    if (gameStatsRef.current.correctFoundBy !== 0) {
+      console.log("opponent later than player")
+      return;
+    }
+    // if game is finished return
+    {
+      let finished = true;
+      for (let i = 0; i < gameLayoutRef.current.player.length; i++) {
+        if (!gameStatsRef.current.playerPicked[i]) {
+          finished = false;
+        }
+      }
+      if (finished) {return;}
+      finished = true;
+      for (let i = 0; i < gameLayoutRef.current.opponent.length; i++) {
+        if (!gameStatsRef.current.opponentPicked[i]) {
+          finished = false;
+        }
+      }
+      if (finished) {return;}
+    }
+    let mistakeRandom = Math.random();
+    let mistake = mistakeRandom < gameOpponentProperties.mistakeRate;
+    // console.log("mistake random", mistakeRandom, " rate", gameOpponentProperties.mistakeRate);
+    // console.log("currentPlayingId", currentPlayingId);
+    if (!mistake) {
+      let found = false;
+      for (let i = 0; i < gameLayoutRef.current.player.length; i++) {
+        if (gameLayoutRef.current.player[i][0] === currentPlayingId && !gameStatsRef.current.playerPicked[i]) {
+          found = true;
+        }
+      }
+      for (let i = 0; i < gameLayoutRef.current.opponent.length; i++) {
+        if (gameLayoutRef.current.opponent[i][0] === currentPlayingId && !gameStatsRef.current.opponentPicked[i]) {
+          found = true;
+        }
+      }
+      if (found) {
+        console.log("opponent found correct");
+        setGameStats({
+          ...gameStatsRef.current,
+          "correctFoundBy": 2,
+        })
+      } else {
+        console.log("opponent found nothing");
+      }
+    } else {
+      // find any card that is not correct
+      let available = []
+      for (let i = 0; i < gameLayoutRef.current.opponent.length; i++) {
+        if (!gameStatsRef.current.opponentPicked[i] && gameLayoutRef.current.opponent[i][0] !== currentPlayingId) {
+          available.push(gameLayoutRef.current.opponent[i][0]);
+        }
+      }
+      for (let i = 0; i < gameLayoutRef.current.player.length; i++) {
+        if (!gameStatsRef.current.playerPicked[i] && gameLayoutRef.current.player[i][0] !== currentPlayingId) {
+          available.push(gameLayoutRef.current.player[i][0]);
+        }
+      }
+      if (available.length === 0) {
+        return;
+      }
+      let randomIndex = Math.floor(Math.random() * available.length);
+      let randomCharacter = available[randomIndex];
+      let mistaken = [];
+      if (gameStatsRef.current.mistaken.player.indexOf(randomCharacter) === -1) {
+        mistaken.push(randomCharacter);
+      }
+      console.log("opponent mistaken", mistaken);
+      setGameStats({
+        ...gameStatsRef.current,
+        "mistaken": {
+          ...gameStatsRef.current.mistaken,
+          "opponent": mistaken,
+        },
+      })
+    }
+  }
+
+  function createOpponentClickTimeout(correctId) {
+    
+    if (!(gameSimulatorEnabled && gameStats.started && gameLayout.hasOpponent)) {
+      return;
+    }
+
+    if (setGameOpponentClickTimeout !== null) {
+      clearTimeout(gameOpponentClickTimeout);
+      setGameOpponentClickTimeout(null);
+    }
+    let time = gameOpponentProperties.average * 1000;
+    let random = Math.random();
+    if (random < gameOpponentProperties.slowRate) {
+      time *= 2;
+    } else if (random < gameOpponentProperties.slowRate + gameOpponentProperties.fastRate) {
+      time *= 0.3;
+    } else {
+      let ratio = Math.random() * 0.6 + 0.7;
+      time *= ratio;
+    }
+    console.log("opponent click in", time, "ms");
+    let timeout = setTimeout(opponentClick, time, correctId);
+    setGameOpponentClickTimeout(timeout);
+  }
 
   function playNextMusic() {
     
@@ -89,6 +382,8 @@ export default function Home() {
 
     setHaveInput(true);
     setCurrentPlayingId(playOrder[index]);
+
+    createOpponentClickTimeout(playOrder[index]);
   }
 
   function nextMusic() {
@@ -218,20 +513,17 @@ export default function Home() {
     setHaveInput(false);
     let ids = []
     Object.entries(data).forEach(([character, value]) => {
-      let tags = value["tags"];
-      // check if any tag in banned tags. if contain, skip
-      for (let i = 0; i < tags.length; i++) {
-        if (tagsBanned[tags[i]]) {
-          return;
-        }
-      }
       ids.push(character);
     });
     // permute the ids
     let permuted = randomlyPermutePlayOrder(ids);
     setPlayOrder(permuted);
+    let first = 0;
+    while (musicIds[permuted[first]] === -1) {
+      first = (first + 1) % permuted.length;
+    }
     if (ids.length > 0) {
-      setCurrentPlayingId(permuted[0]);
+      setCurrentPlayingId(permuted[first]);
       // force audio reload
       audioPlayerRef.current.load();
     }
@@ -258,7 +550,6 @@ export default function Home() {
           sx={{
             backgroundColor: "white",
             width: "30%",
-            padding: 1,
           }}>
           <img key={card} 
             src={"/cards/" + card} 
@@ -309,8 +600,9 @@ export default function Home() {
             <TextField id="playLengthTextField" label="播放时长（0 = 无限）" variant="outlined" size="small"
               className="chinese"
               value={playLength} 
-              onChange={(event) => setPlayLength(event.target.value)}
-              type="text"
+              onChange={(event) => setPlayLength(parseFloat(event.target.value))}
+              type="number"
+              sx={{width: "80%"}}
               // min is 0, max is 180, step is 0.25
               inputProps={{min: 0, max: 180, step: 0.25}}
             />
@@ -501,12 +793,12 @@ export default function Home() {
     return (
       <Box overflow="auto" padding={2}>
         <Stack spacing={2}>
-          <Typography variant="h6" class="chinese">预设快速选择</Typography>
+          <Typography variant="h6" className="chinese">预设快速选择</Typography>
           <Grid container spacing={2}>
             {presets}
           </Grid>
           {idPresetHelpText}
-          <Typography variant="h6" class="chinese">角色单曲选择</Typography>
+          <Typography variant="h6" className="chinese">角色单曲选择</Typography>
           {selectors}
         </Stack>
       </Box>
@@ -554,9 +846,351 @@ export default function Home() {
   }
   
   function renderGameSimulator() {
+
+    let cardSelector = []
+    let totalCount = gameLayout.columns * gameLayout.rows;
+    
+    // return 
+    //   0: nothing, because already selected by opponent, 
+    //      or select by self with another cardId of the same character,
+    //      or is disabled in the music list
+    //   1: can add to self deck, 2: can remove from self deck
+    let selectOption = function(character, cardId, gameLayout) {
+
+      if (musicIds[character] === -1) {
+        return 0;
+      }
+
+      // check if the card is already selected by opponent
+      for (let i = 0; i < gameLayout.opponent.length; i++) {
+        if (gameLayout.opponent[i][0] === character) {
+          return 0;
+        }
+      }
+      // check if the card is already selected by player
+      for (let i = 0; i < gameLayout.player.length; i++) {
+        if (gameLayout.player[i][0] === character) {
+          if (gameLayout.player[i][1] === cardId) {
+            return 2;
+          }
+          return 0;
+        }
+      }
+      return 1;
+    }
+
+    Object.entries(data).forEach(([character, value], index) => {
+      let cardList = value["card"];
+      if (typeof cardList === 'string') {
+        cardList = [cardList];
+      }
+      cardList.forEach((card, index) => {
+        let option = selectOption(character, index, gameLayout);
+        if (option === 0) {return;}
+        if (option === 1 && gameLayout.player.length >= totalCount) {return;}
+        cardSelector.push(
+          <Box key={character + index} sx={{ flex: "0 0 10%" }}>
+            <Button key={character + index} variant="outlined" width="100%" padding={0} margin={0}
+              color={option === 1 ? "primary" : "error"}
+              onClick={() => {
+                if (option === 1) {
+                  setGameLayout({...gameLayout, "player": [...gameLayout.player, [character, index]]})
+                } else if (option === 2) {
+                  let newPlayer = []
+                  for (let i = 0; i < gameLayout.player.length; i++) {
+                    if (gameLayout.player[i][0] === character && gameLayout.player[i][1] === index) {
+                      continue;
+                    }
+                    newPlayer.push(gameLayout.player[i]);
+                  }
+                  setGameLayout({...gameLayout, "player": newPlayer})
+                }
+              }}
+            >
+              <Stack key={character + index} alignItems="center" justifyContent={"center"}>
+              <Paper key={character + index} variant="outlined"
+                sx={{
+                  backgroundColor: {1: "cornflowerblue", 2: "lightsalmon"}[option],
+                  width: "100%",
+                }}>
+                <img key={character + index} 
+                  src={"/cards/" + card} 
+                  alt={card}
+                  style={{width: "100%", height: "auto"}}
+                />
+              </Paper>
+                {option === 1 ? 
+                  <Typography variant="body2" className="chinese">添加</Typography> :
+                  <Typography variant="body2" className="chinese">移除</Typography>
+                }
+              </Stack>
+            </Button>
+          </Box>
+        )
+      })
+    })
+
+    let deckClick = function(isOpponent, index) {
+      if (!gameStats.started) {return;}
+      if (gameStats.correctFoundBy !== 0) {return;}
+      let cardInfo = isOpponent ? gameLayout.opponent[index] : gameLayout.player[index];
+      cardInfo = [cardInfo[0], cardInfo[1]];
+      let newGameStats = {...gameStats};
+      let clickedCharacter = cardInfo[0];
+      if (clickedCharacter === currentPlayingId) {
+        newGameStats.correctFoundBy = 1;
+      } else {
+        if (newGameStats.mistaken.player.indexOf(cardInfo[0]) === -1) {
+          newGameStats.mistaken.player.push(cardInfo[0]);
+        }
+      }
+      setGameStats(newGameStats);
+    }
+
+    // deck list of (character, cardId), picked list of bool, isOpponent bool
+    let renderDeck = function(deck, picked, isOpponent) {
+      const cardAspectRatio = (1000 / 703) * 100 + "%";
+      let rows = []
+      let widthPercentage = Math.floor(gameLayout.deckWidthPercentage / gameLayout.columns) + "%";
+      for (let i = 0; i < deck.length; i += gameLayout.columns) {
+        let endIndex = Math.min(i + gameLayout.columns, deck.length);
+        let rowItems = []
+        for (let j = i; j < endIndex; j++) {
+          let [character, cardId] = deck[j];
+          let cards = data[character]["card"];
+          if (typeof cards === 'string') {
+            cards = [cards];
+          }
+          let cardName = cards[cardId];
+          let visible = (j >= picked.length || picked[j] === false);
+          let background = "white";
+          let mistaken = (
+            gameStats.mistaken.opponent.indexOf(character) !== -1 || 
+            gameStats.mistaken.player.indexOf(character) !== -1
+          );
+          if (mistaken) {
+            background = "lightsalmon"
+          }
+          if (gameStats.correctFoundBy !== 0) {
+            if (character === currentPlayingId) {
+              background = "lightgreen";
+            }
+          }
+          let key = character + cardId + j;
+          rowItems.push(
+            <Box key={key} sx={{ flex: "0 0 " + widthPercentage }}>
+              <Paper key={key} variant="elevation" elevation={0}
+                onClick={() => deckClick(isOpponent, j)}
+                sx={{
+                  backgroundColor: visible ? background : "transparent",
+                  width: "100%",
+                  position: "relative",
+                  paddingTop: cardAspectRatio,
+                  overflow: "hidden",
+                }}>
+                <Box sx={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%"
+                }}>
+                  {visible && <img key={key} 
+                    src={"/cards/" + cardName} 
+                    alt={cardName}
+                    style={{
+                      width: "100%", height: "auto",
+                      transform: isOpponent ? "rotate(180deg)" : "rotate(0deg)"
+                    }}
+                  />}
+                </Box>
+              </Paper>
+            </Box>
+          )
+        }
+        rows.push(
+          <Stack key={i} direction="row" spacing={1} alignItems="center" justifyContent={"center"}>
+            {rowItems}
+          </Stack>
+        )
+      }
+      return <Stack key={isOpponent} spacing={1} padding={1}>
+        {rows}
+      </Stack>
+    }
+
+    let renderObtained = function(obtained, isOpponent) {
+      let cardAspectRatio = (1000 / 703) * 100 + "%";
+      let countText = <Typography variant="h3" sx={{
+        fontFamily: "Consolas, monospace",
+        width: "2em",
+        textAlign: "center",
+      }}>
+        {obtained.length}
+      </Typography>
+      let widthPercentage = Math.floor(gameLayout.deckWidthPercentage / gameLayout.columns) + "%";
+      let overlapPercentage = Math.floor(gameLayout.deckWidthPercentage / gameLayout.columns / 3 * 2) + "%";
+      let dummyCardName = data[Object.keys(data)[0]]["card"];
+      if (typeof dummyCardName === 'string') {
+        dummyCardName = dummyCardName;
+      } else {
+        dummyCardName = dummyCardName[0];
+      }
+      let dummyElement = <Box key="dummy" sx={{ flex: "0 0 " + widthPercentage }}>
+        <Paper key="dummy" variant="elevation" elevation={0}
+          sx={{ backgroundColor: "transparent", width: "100%", position: "relative", paddingTop: cardAspectRatio, overflow: "hidden",
+          }}>
+          <Box sx={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%"
+          }}>
+            {false && <img key={key} 
+              src={"/cards/" + dummyCardName} 
+              alt={dummyCardName}
+              style={{
+                width: "100%", height: "auto",
+              }}
+            />}
+          </Box>
+        </Paper>
+      </Box>
+
+      return <Stack key={isOpponent + "Obtained"} direction="row" spacing={2} alignItems="center">
+        {isOpponent && countText}
+        <Stack key={isOpponent + "ObtainedStack"} 
+          direction="row" spacing={"-" + overlapPercentage} 
+          width="100%"
+          justifyContent={!isOpponent ? "flex-end" : "flex-start"}
+        >
+          {!isOpponent && dummyElement}
+          {obtained.map((cardInfo, index) => {
+            let [character, cardId] = cardInfo;
+            let cards = data[character]["card"];
+            if (typeof cards === 'string') {
+              cards = [cards];
+            }
+            let cardName = cards[cardId];
+            return (
+              <Paper key={character + cardId} variant="elevation" elevation={3}
+                onClick={() => deckClick(isOpponent, j)}
+                sx={{
+                  backgroundColor: "white",
+                  width: widthPercentage,
+                  zIndex: index,
+                }}>
+                  <img key={character + cardId} 
+                    src={"/cards/" + cardName} 
+                    alt={cardName}
+                    style={{
+                      width: "100%", height: "auto",
+                      transform: isOpponent ? "rotate(180deg)" : "rotate(0deg)"
+                    }}
+                  />
+              </Paper>
+            )
+          })}
+          {isOpponent && dummyElement}
+        </Stack>
+        {!isOpponent && countText}
+      </Stack>
+    }
+
+    let gameControls = <></>
+    if (!gameStats.started) {
+      let enabled = (gameLayout.player.length > 0 && (!gameLayout.hasOpponent || gameLayout.opponent.length > 0));
+      gameControls = <Stack direction="row" spacing={2} alignItems="center" justifyContent={"center"}>
+        <Button variant="outlined" width="100" className="chinese"
+          disabled={!enabled}
+          onClick={() => {
+            // picked
+            let playerPicked = []
+            for (let i = 0; i < gameLayout.player.length; i++) {
+              playerPicked.push(false);
+            }
+            let opponentPicked = []
+            if (gameLayout.hasOpponent) {
+              for (let i = 0; i < gameLayout.opponent.length; i++) {
+                opponentPicked.push(false);
+              }
+            }
+            // obtained
+            let playerObtained = []
+            let opponentObtained = []
+            setGameStats({
+              "started": true,
+              "opponentPicked": opponentPicked,
+              "playerPicked": playerPicked,
+              "opponentObtained": opponentObtained,
+              "playerObtained": playerObtained,
+              "mistaken": {
+                "opponent": [],
+                "player": [],
+              },
+              "correctFoundBy": 0,
+            })
+            reroll();
+          }}
+        >开始</Button>
+      </Stack>
+    } else {
+      let isPlayerFinished = true;
+      for (let i = 0; i < gameLayout.player.length; i++) {
+        if (!gameStats.playerPicked[i]) {
+          isPlayerFinished = false;
+        }
+      }
+      let isOpponentFinished = true;
+      for (let i = 0; i < gameLayout.opponent.length; i++) {
+        if (!gameStats.opponentPicked[i]) {
+          isOpponentFinished = false;
+        }
+      }
+      let isFinished = isPlayerFinished || isOpponentFinished;
+      gameControls = <Stack direction="row" spacing={2} alignItems="center" justifyContent={"center"}>
+        <Button disabled={isFinished} onClick={() => {
+          finishCurrentRound()
+          previousMusic()
+        }} variant="outlined" width="100" className="chinese">上一曲</Button>
+        <Button disabled={isFinished} onClick={() => {
+          let audio = audioPlayerRef.current;
+          setHaveInput(true);
+          if (audio.paused) {
+            audio.play();
+          } else {
+            audio.pause();
+          }
+          createOpponentClickTimeout(currentPlayingId);
+        }} variant="outlined" width="100" className="chinese">播放|暂停</Button>
+        <Button disabled={isFinished} onClick={() => {
+          finishCurrentRound()
+          nextMusic()
+        }} variant="outlined" width="100" className="chinese">下一曲</Button>
+        <Button color="error"
+          onClick={() => {
+          setGameLayout({
+            ...gameLayout,
+            "opponent": [],
+            "player": [],
+          })
+          setGameStats({
+            "started": false,
+            "opponentPicked": [],
+            "playerPicked": [],
+            "opponentObtained": [],
+            "playerObtained": [],
+            "mistaken": {
+              "opponent": [],
+              "player": [],
+            },
+            "correctFoundBy": 0,
+          })
+        }} variant="outlined" width="100" className="chinese">
+          结束游戏
+        </Button>
+      </Stack>
+    }
+
     return <Grid container spacing={2} padding={2}>
       <Grid item sm={12}>
-        <Stack>
+        <Stack spacing={2}>
           <Paper elevation={3} padding={2}>
             <CheckBox 
               checked={gameSimulatorEnabled}
@@ -564,14 +1198,253 @@ export default function Home() {
               inputProps={{ 'aria-label': 'controlled' }}
             />模拟器
           </Paper>
-
-          {gameSimulatorEnabled ? <Paper elevation={3} padding={2}><Box padding={2}>
-            <Typography variant="h6" className="chinese">选择卡片</Typography>
-            <Typography variant="body1" className="chinese">从下面序列中选择</Typography>
-            
-            </Box></Paper> : <></>}
         </Stack>
       </Grid>
+
+      {gameSimulatorEnabled ? <Grid item sm={12}>
+        <Stack spacing={2}>
+          
+          {gameStats.started ? <></> : 
+            <Paper elevation={3} padding={2}><Stack spacing={2} padding={2}>
+              <Typography variant="h6" className="chinese">对局设置</Typography>
+              <Stack direction="row" spacing={2}>
+                <TextField id="layoutRows" label="行数" variant="outlined" size="small"
+                  className="chinese"
+                  value={localRows} 
+                  onChange={(event) => setLocalRows(event.target.value)}
+                  type="number"
+                  sx={{width: "20%"}}
+                  inputProps={{min: 1, max: 8, step: 1}}
+                />
+                <TextField id="layoutColumns" label="列数" variant="outlined" size="small"
+                  className="chinese"
+                  value={localColumns} 
+                  onChange={(event) => setLocalColumns(event.target.value)}
+                  type="number"
+                  sx={{width: "20%"}}
+                  inputProps={{min: 1, max: 16, step: 1}}
+                />
+                <TextField id="deckWidthPercentage" label="布局宽度百分比" variant="outlined" size="small"
+                  className="chinese"
+                  value={localDeckWidthPercentage} 
+                  onChange={(event) => setLocalDeckWidthPercentage(event.target.value)}
+                  type="number"
+                  sx={{width: "20%"}}
+                  inputProps={{min: 10, max: 180, step: 1}}
+                />
+                <Button variant="outlined" width="100" className="chinese"
+                onClick={() => {
+                  let totalCount = parseInt(localRows) * parseInt(localColumns);
+                  // if opponent or player is larger than totalCount, remove the last ones
+                  let newOpponent = gameLayout.opponent.slice(0, Math.min(totalCount, gameLayout.opponent.length));
+                  let newPlayer = gameLayout.player.slice(0, Math.min(totalCount, gameLayout.player.length));
+                  setGameLayout({...gameLayout, 
+                    "columns": parseInt(localColumns),
+                    "rows": parseInt(localRows),
+                    "deckWidthPercentage": parseInt(localDeckWidthPercentage),
+                    "opponent": newOpponent, 
+                    "player": newPlayer
+                  })
+                }}
+                >应用</Button>
+              </Stack>
+              <Divider />
+
+              <Typography variant="h6" className="chinese">对手</Typography>
+              
+              <Stack spacing={2}>
+                <Grid item className="chinese">
+                  <CheckBox id="hasOpponent" label="对手" variant="outlined" size="small"
+                    checked={gameLayout.hasOpponent}
+                    onChange={(event) => setGameLayout({...gameLayout, "hasOpponent": event.target.checked})}
+                    inputProps={{ 'aria-label': 'controlled' }}
+                  />设置对手
+                  {gameLayout.hasOpponent ? <>
+                    <Typography variant="body2" className="chinese">
+                      对手将持有反向放置的一组卡片。对手逻辑为，首先判定是否迅速或迟疑做出反应。
+                      若迅速，则反应时间为平均时间的 0.3 倍。若迟疑，则反应时间为平均时间的 2 倍。
+                      否则，均匀在平均时间的 0.7 到 1.3 倍之间随机选择。然后，选择是否犯错。
+                    </Typography>
+                  </> : <></>}
+                </Grid>
+                {gameLayout.hasOpponent ? <Stack direction="row" spacing={2}>
+                  <Button variant="outlined" width="100" className="chinese" 
+                  onClick={() => {
+                    setGameLayout({...gameLayout, "opponent": []})
+                  }}>
+                    移除对手卡片
+                  </Button>
+                  <Button variant="outlined" width="100" className="chinese" 
+                  onClick={() => {
+                    let selectableCharacters = []
+                    Object.entries(data).forEach(([character, value], index) => {
+                      if (musicIds[character] === -1) {
+                        return;
+                      }
+                      // so long as not selected by player
+                      for (let i = 0; i < gameLayout.player.length; i++) {
+                        if (gameLayout.player[i][0] === character) {
+                          return;
+                        }
+                      }
+                      selectableCharacters.push(character);
+                    });
+                    if (selectableCharacters.length < totalCount) {
+                      showAlert("无法抽取对手卡片，因为剩余卡片不足。" +
+                        "需要" + totalCount + "张卡片，但只有" + selectableCharacters.length + "人物可选。");
+                      return;
+                    }
+                    let selectableCards = []
+                    selectableCharacters.forEach((character) => {
+                      let cardList = data[character]["card"];
+                      if (typeof cardList === 'string') {
+                        cardList = [cardList];
+                      }
+                      let cardId = Math.floor(Math.random() * cardList.length);
+                      selectableCards.push([character, cardId]);
+                    });
+                    // select remaining count from selectableCards
+                    let newOpponent = gameLayout.opponent.slice();
+                    while (newOpponent.length < totalCount) {
+                      let index = Math.floor(Math.random() * selectableCards.length);
+                      newOpponent.push(selectableCards[index]);
+                      selectableCards.splice(index, 1);
+                    }
+                    setGameLayout({...gameLayout, "opponent": newOpponent})
+                  }}>
+                    随机抽取对手卡片
+                  </Button> 
+                </Stack> : <></>}
+                {gameLayout.hasOpponent ? <Stack direction="row" spacing={2}>
+                  <TextField id="layoutRows" label="平均反应时间（秒）" variant="outlined" size="small"
+                    className="chinese"
+                    value={gameOpponentProperties.average} 
+                    onChange={(event) => setGameOpponentProperties({
+                      ...gameOpponentProperties, 
+                      "average": parseFloat(event.target.value)
+                    })}
+                    type="number"
+                    sx={{width: "20%"}}
+                    inputProps={{min: 0, max: 5, step: 0.1}}
+                  />
+                  <TextField id="layoutRows" label="迟疑概率" variant="outlined" size="small"
+                    className="chinese"
+                    value={gameOpponentProperties.slowRate} 
+                    onChange={(event) => setGameOpponentProperties({
+                      ...gameOpponentProperties, 
+                      "slowRate": parseFloat(event.target.value)
+                    })}
+                    type="number"
+                    sx={{width: "20%"}}
+                    inputProps={{min: 0, max: 0.5, step: 0.05}}
+                  />
+                  <TextField id="layoutRows" label="迅速概率" variant="outlined" size="small"
+                    className="chinese"
+                    value={gameOpponentProperties.fastRate} 
+                    onChange={(event) => setGameOpponentProperties({
+                      ...gameOpponentProperties, 
+                      "fastRate": parseFloat(event.target.value)
+                    })}
+                    type="number"
+                    sx={{width: "20%"}}
+                    inputProps={{min: 0, max: 0.5, step: 0.05}}
+                  />
+                  <TextField id="layoutRows" label="犯错概率" variant="outlined" size="small"
+                    className="chinese"
+                    value={gameOpponentProperties.mistakeRate} 
+                    onChange={(event) => setGameOpponentProperties({
+                      ...gameOpponentProperties, 
+                      "mistakeRate": parseFloat(event.target.value)
+                    })}
+                    type="number"
+                    sx={{width: "20%"}}
+                    inputProps={{min: 0, max: 1, step: 0.05}}
+                  />
+                </Stack> : <></>}
+              </Stack>
+
+              <Divider />
+              <Typography variant="h6" className="chinese">本方卡片</Typography>
+              <Stack direction="row" spacing={2}>
+                <Button variant="outlined" width="100" className="chinese" 
+                onClick={() => {
+                  setGameLayout({...gameLayout, "player": []})
+                }}>
+                  移除全部本方卡片
+                </Button>
+                <Button variant="outlined" width="100" className="chinese" 
+                onClick={() => {
+                  let selectableCharacters = []
+                  Object.entries(data).forEach(([character, value], index) => {
+                    let cardList = value["card"];
+                    if (typeof cardList === 'string') {
+                      cardList = [cardList];
+                    }
+                    for (let i = 0; i < cardList.length; i++) {
+                      let option = selectOption(character, i, gameLayout);
+                      if (option === 1) {
+                        selectableCharacters.push(character);
+                        break;
+                      }
+                    }
+                  });
+                  if (selectableCharacters.length < totalCount - gameLayout.player.length) {
+                    showAlert("无法抽取剩余本方卡片，因为剩余卡片不足。" +
+                      "需要" + (totalCount - gameLayout.player.length) + "张卡片，但只有" + selectableCharacters.length + "人物可选。");
+                    return;
+                  }
+                  let selectableCards = []
+                  selectableCharacters.forEach((character) => {
+                    let cardList = data[character]["card"];
+                    if (typeof cardList === 'string') {
+                      cardList = [cardList];
+                    }
+                    let cardId = Math.floor(Math.random() * cardList.length);
+                    selectableCards.push([character, cardId]);
+                  });
+                  // select remaining count from selectableCards
+                  let newPlayer = gameLayout.player.slice();
+                  while (newPlayer.length < totalCount) {
+                    let index = Math.floor(Math.random() * selectableCards.length);
+                    newPlayer.push(selectableCards[index]);
+                    selectableCards.splice(index, 1);
+                  }
+                  setGameLayout({...gameLayout, "player": newPlayer})
+                }}>
+                  随机抽取剩余本方卡片
+                </Button> 
+                <Button variant="outlined" width="100" className="chinese" 
+                onClick={() => {
+                  let old = gameLayout.player.slice();
+                  for (let i = 0; i < old.length; i++) {
+                    let j = Math.floor(Math.random() * old.length);
+                    let temp = old[i];
+                    old[i] = old[j];
+                    old[j] = temp;
+                  }
+                  setGameLayout({...gameLayout, "player": old})
+                }}>
+                  打乱本方顺序
+                </Button>
+              </Stack>
+              <Stack direction="row" spacing={2} paddingBottom={2} sx={
+                {whiteSpace: "nowrap", overflow: "auto", display: "flex", flexWrap: "nowrap"}
+              }>
+                {cardSelector}
+              </Stack>
+            </Stack></Paper>
+          }
+
+          <Paper elevation={3} padding={2}><Stack padding={2}>
+            {(gameStats.started && gameLayout.hasOpponent) ? renderObtained(gameStats.opponentObtained, true) : <></>}
+            {gameLayout.hasOpponent ? renderDeck(gameLayout.opponent, gameStats.opponentPicked, true) : <></>}
+            {gameControls}
+            {renderDeck(gameLayout.player, gameStats.playerPicked, false)}
+            {gameStats.started ? renderObtained(gameStats.playerObtained, false) : <></>}
+          </Stack></Paper>
+
+        </Stack>
+      </Grid>: <></>}
     </Grid>
   }
 
@@ -579,6 +1452,11 @@ export default function Home() {
 
     return (
       <>
+        <Collapse in={alertInfo.message !== ""}>
+          <Alert severity="warning">
+            {alertInfo.message}
+          </Alert>
+        </Collapse>
         {renderGameSimulator()}
         <div style={{
           display: gameSimulatorEnabled ? "none" : "block",
