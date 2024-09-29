@@ -889,8 +889,17 @@ export default function Home() {
         if (option === 0) {return;}
         if (option === 1 && gameLayout.player.length >= totalCount) {return;}
         cardSelector.push(
-          <Box key={character + index} sx={{ flex: "0 0 10%" }}>
-            <Button key={character + index} variant="outlined" width="100%" padding={0} margin={0}
+          <Box key={character + index} sx={{ 
+            flex: {
+              sm: "0 0 10%",
+              xs: "0 0 30%",
+            }
+          }} padding={0}>
+            <Button key={character + index} variant="outlined" width="100%" size="small"
+              sx={{
+                margin: 0,
+                spacing: 0,
+              }}
               color={option === 1 ? "primary" : "error"}
               onClick={() => {
                 if (option === 1) {
@@ -1022,9 +1031,8 @@ export default function Home() {
     let renderObtained = function(obtained, isOpponent) {
       let cardAspectRatio = (1000 / 703) * 100 + "%";
       let countText = <Typography variant="h3" sx={{
-        fontFamily: "Consolas, monospace",
-        width: "2em",
-        textAlign: "center",
+        fontFamily: "Georgia, 'Times New Roman', serif",
+        paddingX: 2,
       }}>
         {obtained.length}
       </Typography>
@@ -1053,43 +1061,57 @@ export default function Home() {
         </Paper>
       </Box>
 
-      return <Stack key={isOpponent + "Obtained"} direction="row" spacing={2} alignItems="center">
-        {isOpponent && countText}
+
+      let renderedCards = []
+      obtained.forEach((cardInfo, index) => {
+        let [character, cardId] = cardInfo;
+        let cards = data[character]["card"];
+        if (typeof cards === 'string') {
+          cards = [cards];
+        }
+        let cardName = cards[cardId];
+        renderedCards.push(<Paper key={"" + renderedCards.length} variant="elevation" elevation={3}
+          sx={{
+            backgroundColor: "white",
+            width: widthPercentage,
+            zIndex: index,
+            flexShrink: 0,
+          }}>
+            <img key={"" + renderedCards.length} 
+              src={"/cards/" + cardName} 
+              alt={cardName}
+              style={{
+                width: "100%", height: "auto",
+                transform: isOpponent ? "rotate(180deg)" : "rotate(0deg)"
+              }}
+            />
+        </Paper>);
+      })
+      if (isOpponent) {
+        renderedCards.reverse();
+      }
+
+      return <Stack key={isOpponent + "Obtained"} 
+        direction={isOpponent ? "column": "column-reverse"}
+        spacing={2} alignItems={isOpponent ? "flex-start" : "flex-end"}
+        sx={{
+          overflowX: "visible",
+        }}
+      >
         <Stack key={isOpponent + "ObtainedStack"} 
-          direction="row" spacing={"-" + overlapPercentage} 
+          direction={"row"}
+          spacing={"-" + overlapPercentage} 
           width="100%"
           justifyContent={!isOpponent ? "flex-end" : "flex-start"}
+          sx={{
+            overflowX: "visible",
+          }}
         >
-          {!isOpponent && dummyElement}
-          {obtained.map((cardInfo, index) => {
-            let [character, cardId] = cardInfo;
-            let cards = data[character]["card"];
-            if (typeof cards === 'string') {
-              cards = [cards];
-            }
-            let cardName = cards[cardId];
-            return (
-              <Paper key={character + cardId} variant="elevation" elevation={3}
-                onClick={() => deckClick(isOpponent, j)}
-                sx={{
-                  backgroundColor: "white",
-                  width: widthPercentage,
-                  zIndex: index,
-                }}>
-                  <img key={character + cardId} 
-                    src={"/cards/" + cardName} 
-                    alt={cardName}
-                    style={{
-                      width: "100%", height: "auto",
-                      transform: isOpponent ? "rotate(180deg)" : "rotate(0deg)"
-                    }}
-                  />
-              </Paper>
-            )
-          })}
-          {isOpponent && dummyElement}
+          {(renderedCards.length == 0 && !isOpponent) && dummyElement}
+          {renderedCards}
+          {(renderedCards.length == 0 && isOpponent) && dummyElement}
         </Stack>
-        {!isOpponent && countText}
+        {countText}
       </Stack>
     }
 
@@ -1097,7 +1119,10 @@ export default function Home() {
     if (!gameStats.started) {
       let enabled = (gameLayout.player.length > 0 && (!gameLayout.hasOpponent || gameLayout.opponent.length > 0));
       gameControls = <Stack direction="row" spacing={2} alignItems="center" justifyContent={"center"}>
-        <Button variant="outlined" width="100" className="chinese"
+        <Button variant="outlined" className="chinese"
+          sx={{
+            width: "auto"
+          }}
           disabled={!enabled}
           onClick={() => {
             // picked
@@ -1145,54 +1170,75 @@ export default function Home() {
         }
       }
       let isFinished = isPlayerFinished || isOpponentFinished;
-      gameControls = <Stack direction="row" spacing={2} alignItems="center" justifyContent={"center"}>
+      gameControls = <Stack direction="row" alignItems="center" justifyContent={"center"} 
+        flexWrap="wrap" useFlexGap
+        spacing={{
+          sm: 2,
+          xs: 1,
+        }}
+      >
         <Button disabled={isFinished} onClick={() => {
-          finishCurrentRound()
-          previousMusic()
-        }} variant="outlined" width="100" className="chinese">上一曲</Button>
+            finishCurrentRound()
+            previousMusic()
+          }}
+          variant="outlined" 
+          className="chinese"
+          sx={{width: {sm: "auto", xs: "30%"}}}
+        >上一曲</Button>
         <Button disabled={isFinished} onClick={() => {
-          let audio = audioPlayerRef.current;
-          setHaveInput(true);
-          if (audio.paused) {
-            audio.play();
-          } else {
-            audio.pause();
-          }
-          createOpponentClickTimeout(currentPlayingId);
-        }} variant="outlined" width="100" className="chinese">播放|暂停</Button>
+            let audio = audioPlayerRef.current;
+            setHaveInput(true);
+            if (audio.paused) {
+              audio.play();
+            } else {
+              audio.pause();
+            }
+            createOpponentClickTimeout(currentPlayingId);
+          }} 
+          variant="outlined" className="chinese"
+          sx={{width: {sm: "auto", xs: "30%"}}}
+        >播放|暂停</Button>
         <Button disabled={isFinished} onClick={() => {
-          finishCurrentRound()
-          nextMusic()
-        }} variant="outlined" width="100" className="chinese">下一曲</Button>
+            finishCurrentRound()
+            nextMusic()
+          }} 
+          variant="outlined" 
+          className="chinese"
+          sx={{width: {sm: "auto", xs: "30%"}}}
+        >下一曲</Button>
         <Button color="error"
           onClick={() => {
-          setGameLayout({
-            ...gameLayout,
-            "opponent": [],
-            "player": [],
-          })
-          setGameStats({
-            "started": false,
-            "opponentPicked": [],
-            "playerPicked": [],
-            "opponentObtained": [],
-            "playerObtained": [],
-            "mistaken": {
+            setGameLayout({
+              ...gameLayout,
               "opponent": [],
               "player": [],
-            },
-            "correctFoundBy": 0,
-          })
-        }} variant="outlined" width="100" className="chinese">
+            })
+            setGameStats({
+              "started": false,
+              "opponentPicked": [],
+              "playerPicked": [],
+              "opponentObtained": [],
+              "playerObtained": [],
+              "mistaken": {
+                "opponent": [],
+                "player": [],
+              },
+              "correctFoundBy": 0,
+            })
+          }}
+          variant="outlined" 
+          sx={{width: {sm: "auto", xs: "30%"}}}
+          className="chinese"
+        >
           结束游戏
         </Button>
       </Stack>
     }
 
     return <Grid container spacing={2} padding={2}>
-      <Grid item sm={12}>
+      <Grid item sm={12} xs={12}>
         <Stack spacing={2}>
-          <Paper elevation={3} padding={2}>
+          <Paper elevation={3} padding={2} className="chinese">
             <CheckBox 
               checked={gameSimulatorEnabled}
               onChange={(event) => setGameSimulatorEnabled(event.target.checked)}
@@ -1202,19 +1248,19 @@ export default function Home() {
         </Stack>
       </Grid>
 
-      {gameSimulatorEnabled ? <Grid item sm={12}>
+      {gameSimulatorEnabled ? <Grid item sm={12} xs={12}>
         <Stack spacing={2}>
           
           {gameStats.started ? <></> : 
             <Paper elevation={3} padding={2}><Stack spacing={2} padding={2}>
               <Typography variant="h6" className="chinese">对局设置</Typography>
-              <Stack direction="row" spacing={2}>
+              <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
                 <TextField id="layoutRows" label="行数" variant="outlined" size="small"
                   className="chinese"
                   value={localRows} 
                   onChange={(event) => setLocalRows(event.target.value)}
                   type="number"
-                  sx={{width: "20%"}}
+                  sx={{width: {sm: "20%", xs: "45%"}}}
                   inputProps={{min: 1, max: 8, step: 1}}
                 />
                 <TextField id="layoutColumns" label="列数" variant="outlined" size="small"
@@ -1222,7 +1268,7 @@ export default function Home() {
                   value={localColumns} 
                   onChange={(event) => setLocalColumns(event.target.value)}
                   type="number"
-                  sx={{width: "20%"}}
+                  sx={{width: {sm: "20%", xs: "45%"}}}
                   inputProps={{min: 1, max: 16, step: 1}}
                 />
                 <TextField id="deckWidthPercentage" label="布局宽度百分比" variant="outlined" size="small"
@@ -1230,52 +1276,57 @@ export default function Home() {
                   value={localDeckWidthPercentage} 
                   onChange={(event) => setLocalDeckWidthPercentage(event.target.value)}
                   type="number"
-                  sx={{width: "20%"}}
+                  sx={{width: {sm: "20%", xs: "45%"}}}
                   inputProps={{min: 10, max: 180, step: 1}}
                 />
-                <Button variant="outlined" width="100" className="chinese"
-                onClick={() => {
-                  let totalCount = parseInt(localRows) * parseInt(localColumns);
-                  // if opponent or player is larger than totalCount, remove the last ones
-                  let newOpponent = gameLayout.opponent.slice(0, Math.min(totalCount, gameLayout.opponent.length));
-                  let newPlayer = gameLayout.player.slice(0, Math.min(totalCount, gameLayout.player.length));
-                  setGameLayout({...gameLayout, 
-                    "columns": parseInt(localColumns),
-                    "rows": parseInt(localRows),
-                    "deckWidthPercentage": parseInt(localDeckWidthPercentage),
-                    "opponent": newOpponent, 
-                    "player": newPlayer
-                  })
-                }}
+                <Button variant="outlined" className="chinese"
+                  sx={{width: {sm: "20%", xs: "45%"}}}
+                  onClick={() => {
+                    let totalCount = parseInt(localRows) * parseInt(localColumns);
+                    // if opponent or player is larger than totalCount, remove the last ones
+                    let newOpponent = gameLayout.opponent.slice(0, Math.min(totalCount, gameLayout.opponent.length));
+                    let newPlayer = gameLayout.player.slice(0, Math.min(totalCount, gameLayout.player.length));
+                    setGameLayout({...gameLayout, 
+                      "columns": parseInt(localColumns),
+                      "rows": parseInt(localRows),
+                      "deckWidthPercentage": parseInt(localDeckWidthPercentage),
+                      "opponent": newOpponent, 
+                      "player": newPlayer
+                    })
+                  }}
                 >应用</Button>
               </Stack>
               <Divider />
 
-              <Typography variant="h6" className="chinese">对手</Typography>
-              
-              <Stack spacing={2}>
+              <Stack spacing={2} direction="row" alignItems="center">
+                <Typography variant="h6" className="chinese">对手</Typography>
                 <Grid item className="chinese">
                   <CheckBox id="hasOpponent" label="对手" variant="outlined" size="small"
                     checked={gameLayout.hasOpponent}
                     onChange={(event) => setGameLayout({...gameLayout, "hasOpponent": event.target.checked})}
                     inputProps={{ 'aria-label': 'controlled' }}
-                  />设置对手
-                  {gameLayout.hasOpponent ? <>
-                    <Typography variant="body2" className="chinese">
-                      对手将持有反向放置的一组卡片。对手逻辑为，首先判定是否迅速或迟疑做出反应。
-                      若迅速，则反应时间为平均时间的 0.3 倍。若迟疑，则反应时间为平均时间的 2 倍。
-                      否则，均匀在平均时间的 0.7 到 1.3 倍之间随机选择。然后，选择是否犯错。
-                    </Typography>
-                  </> : <></>}
+                  />启用
                 </Grid>
+              </Stack>
+              
+              <Stack spacing={2}>
+                {gameLayout.hasOpponent ? <>
+                  <Typography variant="body2" className="chinese">
+                    对手将持有反向放置的一组卡片。对手逻辑为，首先判定是否迅速或迟疑做出反应。
+                    若迅速，则反应时间为平均时间的 0.3 倍。若迟疑，则反应时间为平均时间的 2 倍。
+                    否则，均匀在平均时间的 0.7 到 1.3 倍之间随机选择。在反应时间结束时，选择是否犯错。
+                  </Typography>
+                </> : <></>}
                 {gameLayout.hasOpponent ? <Stack direction="row" spacing={2}>
-                  <Button variant="outlined" width="100" className="chinese" 
-                  onClick={() => {
-                    setGameLayout({...gameLayout, "opponent": []})
+                  <Button variant="outlined" className="chinese" color="warning"
+                    sx={{width: {sm: "20%", xs: "45%"}}}
+                    onClick={() => {
+                      setGameLayout({...gameLayout, "opponent": []})
                   }}>
-                    移除对手卡片
+                    清空
                   </Button>
-                  <Button variant="outlined" width="100" className="chinese" 
+                  <Button variant="outlined" className="chinese" 
+                  sx={{width: {sm: "20%", xs: "45%"}}}
                   onClick={() => {
                     let selectableCharacters = []
                     Object.entries(data).forEach(([character, value], index) => {
@@ -1313,10 +1364,10 @@ export default function Home() {
                     }
                     setGameLayout({...gameLayout, "opponent": newOpponent})
                   }}>
-                    随机抽取对手卡片
+                    随机
                   </Button> 
                 </Stack> : <></>}
-                {gameLayout.hasOpponent ? <Stack direction="row" spacing={2}>
+                {gameLayout.hasOpponent ? <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
                   <TextField id="layoutRows" label="平均反应时间（秒）" variant="outlined" size="small"
                     className="chinese"
                     value={gameOpponentProperties.average} 
@@ -1325,8 +1376,19 @@ export default function Home() {
                       "average": parseFloat(event.target.value)
                     })}
                     type="number"
-                    sx={{width: "20%"}}
+                    sx={{width: {sm: "20%", xs: "45%"}}}
                     inputProps={{min: 0, max: 5, step: 0.1}}
+                  />
+                  <TextField id="layoutRows" label="犯错概率" variant="outlined" size="small"
+                    className="chinese"
+                    value={gameOpponentProperties.mistakeRate} 
+                    onChange={(event) => setGameOpponentProperties({
+                      ...gameOpponentProperties, 
+                      "mistakeRate": parseFloat(event.target.value)
+                    })}
+                    type="number"
+                    sx={{width: {sm: "20%", xs: "45%"}}}
+                    inputProps={{min: 0, max: 1, step: 0.05}}
                   />
                   <TextField id="layoutRows" label="迟疑概率" variant="outlined" size="small"
                     className="chinese"
@@ -1336,7 +1398,7 @@ export default function Home() {
                       "slowRate": parseFloat(event.target.value)
                     })}
                     type="number"
-                    sx={{width: "20%"}}
+                    sx={{width: {sm: "20%", xs: "45%"}}}
                     inputProps={{min: 0, max: 0.5, step: 0.05}}
                   />
                   <TextField id="layoutRows" label="迅速概率" variant="outlined" size="small"
@@ -1347,85 +1409,80 @@ export default function Home() {
                       "fastRate": parseFloat(event.target.value)
                     })}
                     type="number"
-                    sx={{width: "20%"}}
+                    sx={{width: {sm: "20%", xs: "45%"}}}
                     inputProps={{min: 0, max: 0.5, step: 0.05}}
-                  />
-                  <TextField id="layoutRows" label="犯错概率" variant="outlined" size="small"
-                    className="chinese"
-                    value={gameOpponentProperties.mistakeRate} 
-                    onChange={(event) => setGameOpponentProperties({
-                      ...gameOpponentProperties, 
-                      "mistakeRate": parseFloat(event.target.value)
-                    })}
-                    type="number"
-                    sx={{width: "20%"}}
-                    inputProps={{min: 0, max: 1, step: 0.05}}
                   />
                 </Stack> : <></>}
               </Stack>
 
               <Divider />
-              <Typography variant="h6" className="chinese">本方卡片</Typography>
-              <Stack direction="row" spacing={2}>
+              <Typography variant="h6" className="chinese">本方</Typography>
+              <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
                 <Button variant="outlined" width="100" className="chinese" 
-                onClick={() => {
-                  setGameLayout({...gameLayout, "player": []})
-                }}>
-                  移除全部本方卡片
+                  sx={{width: {sm: "20%", xs: "30%"}}} color="warning"
+                  onClick={() => {
+                    setGameLayout({...gameLayout, "player": []})
+                  }}
+                >
+                  清空
                 </Button>
                 <Button variant="outlined" width="100" className="chinese" 
-                onClick={() => {
-                  let selectableCharacters = []
-                  Object.entries(data).forEach(([character, value], index) => {
-                    let cardList = value["card"];
-                    if (typeof cardList === 'string') {
-                      cardList = [cardList];
-                    }
-                    for (let i = 0; i < cardList.length; i++) {
-                      let option = selectOption(character, i, gameLayout);
-                      if (option === 1) {
-                        selectableCharacters.push(character);
-                        break;
+                  sx={{width: {sm: "20%", xs: "30%"}}}
+                  onClick={() => {
+                    let selectableCharacters = []
+                    Object.entries(data).forEach(([character, value], index) => {
+                      let cardList = value["card"];
+                      if (typeof cardList === 'string') {
+                        cardList = [cardList];
                       }
+                      for (let i = 0; i < cardList.length; i++) {
+                        let option = selectOption(character, i, gameLayout);
+                        if (option === 1) {
+                          selectableCharacters.push(character);
+                          break;
+                        }
+                      }
+                    });
+                    if (selectableCharacters.length < totalCount - gameLayout.player.length) {
+                      showAlert("无法抽取剩余本方卡片，因为剩余卡片不足。" +
+                        "需要" + (totalCount - gameLayout.player.length) + "张卡片，但只有" + selectableCharacters.length + "人物可选。");
+                      return;
                     }
-                  });
-                  if (selectableCharacters.length < totalCount - gameLayout.player.length) {
-                    showAlert("无法抽取剩余本方卡片，因为剩余卡片不足。" +
-                      "需要" + (totalCount - gameLayout.player.length) + "张卡片，但只有" + selectableCharacters.length + "人物可选。");
-                    return;
-                  }
-                  let selectableCards = []
-                  selectableCharacters.forEach((character) => {
-                    let cardList = data[character]["card"];
-                    if (typeof cardList === 'string') {
-                      cardList = [cardList];
+                    let selectableCards = []
+                    selectableCharacters.forEach((character) => {
+                      let cardList = data[character]["card"];
+                      if (typeof cardList === 'string') {
+                        cardList = [cardList];
+                      }
+                      let cardId = Math.floor(Math.random() * cardList.length);
+                      selectableCards.push([character, cardId]);
+                    });
+                    // select remaining count from selectableCards
+                    let newPlayer = gameLayout.player.slice();
+                    while (newPlayer.length < totalCount) {
+                      let index = Math.floor(Math.random() * selectableCards.length);
+                      newPlayer.push(selectableCards[index]);
+                      selectableCards.splice(index, 1);
                     }
-                    let cardId = Math.floor(Math.random() * cardList.length);
-                    selectableCards.push([character, cardId]);
-                  });
-                  // select remaining count from selectableCards
-                  let newPlayer = gameLayout.player.slice();
-                  while (newPlayer.length < totalCount) {
-                    let index = Math.floor(Math.random() * selectableCards.length);
-                    newPlayer.push(selectableCards[index]);
-                    selectableCards.splice(index, 1);
-                  }
-                  setGameLayout({...gameLayout, "player": newPlayer})
-                }}>
-                  随机抽取剩余本方卡片
+                    setGameLayout({...gameLayout, "player": newPlayer})
+                  }}
+                >
+                  {gameLayout.player.length === 0 ? "随机填满" : "随机补全"}
                 </Button> 
                 <Button variant="outlined" width="100" className="chinese" 
-                onClick={() => {
-                  let old = gameLayout.player.slice();
-                  for (let i = 0; i < old.length; i++) {
-                    let j = Math.floor(Math.random() * old.length);
-                    let temp = old[i];
-                    old[i] = old[j];
-                    old[j] = temp;
-                  }
-                  setGameLayout({...gameLayout, "player": old})
-                }}>
-                  打乱本方顺序
+                  sx={{width: {sm: "20%", xs: "30%"}}}
+                  onClick={() => {
+                    let old = gameLayout.player.slice();
+                    for (let i = 0; i < old.length; i++) {
+                      let j = Math.floor(Math.random() * old.length);
+                      let temp = old[i];
+                      old[i] = old[j];
+                      old[j] = temp;
+                    }
+                    setGameLayout({...gameLayout, "player": old})
+                  }}
+                >
+                  乱序
                 </Button>
               </Stack>
               <Stack direction="row" spacing={2} paddingBottom={2} sx={
@@ -1454,7 +1511,7 @@ export default function Home() {
     return (
       <>
         <Collapse in={alertInfo.message !== ""}>
-          <Alert severity="warning">
+          <Alert severity="warning" className="chinese">
             {alertInfo.message}
           </Alert>
         </Collapse>
