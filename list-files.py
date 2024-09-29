@@ -1,4 +1,4 @@
-path = "./public/music/Original Soundtracks/"
+path = "./public/music/"
 
 import os
 
