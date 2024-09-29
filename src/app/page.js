@@ -120,12 +120,12 @@ export default function Home() {
     "fastRate": 0.2,
   })
   const [gamePlayerStats, setGamePlayerStats] = useState({
-    "startTimestamp": 0,
     "allAccumulateTime": 0,
     "correctAccumulateTime": 0,
-    "mistakeCount": 0,
-    "correctCount": 0,
+    "allClicks": 0,
+    "correctClicks": 0,
   })
+  const [gameRoundStartTimestamp, setGameRoundStartTimestamp] = useState(0);
 
   function finishCurrentRound() {
     if (setGameOpponentClickTimeout !== null) {
@@ -144,6 +144,14 @@ export default function Home() {
           newGameStats.playerObtained.push(gameLayout.player[i]);
         } else if (gameStats.correctFoundBy === 2) {
           newGameStats.opponentObtained.push(gameLayout.player[i]);
+        } else {
+          if (!gameLayout.hasOpponent) {
+            setGamePlayerStats({
+              ...gamePlayerStats,
+              "allClicks": gamePlayerStats.allClicks + 1,
+              "allAccumulateTime": gamePlayerStats.allAccumulateTime + (Date.now() - gameRoundStartTimestamp),
+            })
+          }
         }
       }
     }
@@ -155,6 +163,14 @@ export default function Home() {
           newGameStats.playerObtained.push(gameLayout.opponent[i]);
         } else if (gameStats.correctFoundBy === 2) {
           newGameStats.opponentObtained.push(gameLayout.opponent[i]);
+        } else {
+          if (!gameLayout.hasOpponent) {
+            setGamePlayerStats({
+              ...gamePlayerStats,
+              "allClicks": gamePlayerStats.allClicks + 1,
+              "allAccumulateTime": gamePlayerStats.allAccumulateTime + (Date.now() - gameRoundStartTimestamp),
+            })
+          }
         }
       }
     }
@@ -244,6 +260,7 @@ export default function Home() {
   const countdownPlayerRef = useRef(null);
   const gameStatsRef = useRef(gameStats);
   const gameLayoutRef = useRef(gameLayout);
+  const gamePlayerStatsRef = useRef(gamePlayerStats);
 
   useEffect(() => {
     gameStatsRef.current = gameStats;
@@ -389,7 +406,12 @@ export default function Home() {
     }
 
     setHaveInput(true);
+    let previousPlayingId = currentPlayingId;
     setCurrentPlayingId(playOrder[index]);
+
+    if (gameSimulatorEnabled) {
+      setGameRoundStartTimestamp(Date.now());
+    }
 
     createOpponentClickTimeout(playOrder[index]);
   }
@@ -953,22 +975,28 @@ export default function Home() {
       let cardInfo = isOpponent ? gameLayout.opponent[index] : gameLayout.player[index];
       cardInfo = [cardInfo[0], cardInfo[1]];
       let newGameStats = {...gameStats};
+      let newPlayerStats = {...gamePlayerStats};
       let clickedCharacter = cardInfo[0];
+      newPlayerStats.allClicks += 1;
+      newPlayerStats.allAccumulateTime += Date.now() - gameRoundStartTimestamp;
       if (clickedCharacter === currentPlayingId) {
         newGameStats.correctFoundBy = 1;
+        newPlayerStats.correctClicks += 1;
+        newPlayerStats.correctAccumulateTime += Date.now() - gameRoundStartTimestamp;
       } else {
         if (newGameStats.mistaken.player.indexOf(cardInfo[0]) === -1) {
           newGameStats.mistaken.player.push(cardInfo[0]);
         }
       }
       setGameStats(newGameStats);
+      setGamePlayerStats(newPlayerStats);
     }
 
     // deck list of (character, cardId), picked list of bool, isOpponent bool
     let renderDeck = function(deck, picked, isOpponent) {
       const cardAspectRatio = (1000 / 703) * 100 + "%";
       let rows = []
-      let widthPercentage = Math.floor(gameLayout.deckWidthPercentage / gameLayout.columns) + "%";
+      let widthPercentage = (gameLayout.deckWidthPercentage / gameLayout.columns) + "%";
       for (let i = 0; i < deck.length; i += gameLayout.columns) {
         let endIndex = Math.min(i + gameLayout.columns, deck.length);
         let rowItems = []
@@ -1044,8 +1072,8 @@ export default function Home() {
       }}>
         {obtained.length}
       </Typography>
-      let widthPercentage = Math.floor(gameLayout.deckWidthPercentage / gameLayout.columns) + "%";
-      let overlapPercentage = Math.floor(gameLayout.deckWidthPercentage / gameLayout.columns / 2) + "%";
+      let widthPercentage = (gameLayout.deckWidthPercentage / gameLayout.columns) + "%";
+      let overlapPercentage = (gameLayout.deckWidthPercentage / gameLayout.columns * 2 / 3) + "%";
       let dummyCardName = data[Object.keys(data)[0]]["card"];
       if (typeof dummyCardName === 'string') {
         dummyCardName = dummyCardName;
@@ -1069,6 +1097,30 @@ export default function Home() {
         </Paper>
       </Box>
 
+      let playerStats = <></>
+      if (!isOpponent) {
+        let correctRate = (gamePlayerStats.allClicks == 0) ? 0 : gamePlayerStats.correctClicks / gamePlayerStats.allClicks;
+        // get xx.xx% percent with 2 decimal places
+        correctRate = Math.round(correctRate * 10000) / 100;
+        correctRate = correctRate.toFixed(2);
+        let averageTime = (gamePlayerStats.allClicks == 0) ? 0 : gamePlayerStats.allAccumulateTime / gamePlayerStats.allClicks;
+        // get "x.xxx s" with 3 decimal places
+        averageTime = (averageTime / 1000).toFixed(3) + " 秒";
+        let correctTime = (gamePlayerStats.correctClicks == 0) ? 0 : gamePlayerStats.correctAccumulateTime / gamePlayerStats.correctClicks;
+        // get "x.xxx s" with 3 decimal places
+        correctTime = (correctTime / 1000).toFixed(3) + " 秒";
+        playerStats = <Stack direction={{
+          xs: "column", sm: "row"
+        }} spacing={1} padding={1} flexWrap="wrap" useFlexGap justifyContent="flex-end" alignItems="flex-end">
+          <Divider orientation="vertical" flexItem xs={{display: {xs: "none", sm: "block"}}} />
+          <Typography variant="h6" className="chinese">正确率: {gamePlayerStats.correctClicks} / {gamePlayerStats.allClicks} = {correctRate}</Typography>
+          <Divider orientation="vertical" flexItem xs={{display: {xs: "none", sm: "block"}}} />
+          <Typography variant="h6" className="chinese">总平均响应: {averageTime}</Typography>
+          <Divider orientation="vertical" flexItem xs={{display: {xs: "none", sm: "block"}}} />
+          <Typography variant="h6" className="chinese">正确平均响应: {correctTime}</Typography>
+          <Divider orientation="vertical" flexItem xs={{display: {xs: "none", sm: "block"}}} />
+        </Stack>
+      }
 
       let renderedCards = []
       obtained.forEach((cardInfo, index) => {
@@ -1078,13 +1130,17 @@ export default function Home() {
           cards = [cards];
         }
         let cardName = cards[cardId];
-        renderedCards.push(<Paper key={"" + renderedCards.length} variant="elevation" elevation={3}
+        renderedCards.push(<Paper key={"" + renderedCards.length} variant="elevation" elevation={6}
           sx={{
             backgroundColor: "white",
             width: widthPercentage,
             zIndex: index,
             flexShrink: 0,
-          }}>
+            '&:hover': {
+              zIndex: 1000,
+            }
+          }}
+          >
             <img key={"" + renderedCards.length} 
               src={"/cards/" + cardName} 
               alt={cardName}
@@ -1101,7 +1157,7 @@ export default function Home() {
 
       return <Stack key={isOpponent + "Obtained"} 
         direction={isOpponent ? "column": "column-reverse"}
-        spacing={2} alignItems={isOpponent ? "flex-start" : "flex-end"}
+        spacing={isOpponent ? 2 : 1} alignItems={isOpponent ? "flex-start" : "flex-end"}
         sx={{
           overflowX: "visible",
         }}
@@ -1119,6 +1175,7 @@ export default function Home() {
           {renderedCards}
           {(renderedCards.length == 0 && isOpponent) && dummyElement}
         </Stack>
+        {!isOpponent && playerStats}
         {countText}
       </Stack>
     }
@@ -1159,6 +1216,13 @@ export default function Home() {
               },
               "correctFoundBy": 0,
             })
+            setGamePlayerStats({
+              "allClicks": 0,
+              "allAccumulateTime": 0,
+              "correctClicks": 0,
+              "correctAccumulateTime": 0,
+            })
+            setGameRoundStartTimestamp(Date.now());
             reroll();
           }}
         >开始</Button>
@@ -1204,6 +1268,7 @@ export default function Home() {
               audio.pause();
             }
             createOpponentClickTimeout(currentPlayingId);
+            setGameRoundStartTimestamp(Date.now());
           }} 
           variant="outlined" className="chinese"
           sx={{width: {sm: "auto", xs: "30%"}}}
