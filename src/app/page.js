@@ -1113,7 +1113,7 @@ export default function Home() {
           xs: "column", sm: "row"
         }} spacing={1} padding={1} flexWrap="wrap" useFlexGap justifyContent="flex-end" alignItems="flex-end">
           <Divider orientation="vertical" flexItem xs={{display: {xs: "none", sm: "block"}}} />
-          <Typography variant="h6" className="chinese">正确率: {gamePlayerStats.correctClicks} / {gamePlayerStats.allClicks} = {correctRate}</Typography>
+          <Typography variant="h6" className="chinese">正确率: {gamePlayerStats.correctClicks} / {gamePlayerStats.allClicks} = {correctRate}%</Typography>
           <Divider orientation="vertical" flexItem xs={{display: {xs: "none", sm: "block"}}} />
           <Typography variant="h6" className="chinese">总平均响应: {averageTime}</Typography>
           <Divider orientation="vertical" flexItem xs={{display: {xs: "none", sm: "block"}}} />
@@ -1231,19 +1231,7 @@ export default function Home() {
         </Typography>
       </Stack>
     } else {
-      let isPlayerFinished = true;
-      for (let i = 0; i < gameLayout.player.length; i++) {
-        if (!gameStats.playerPicked[i]) {
-          isPlayerFinished = false;
-        }
-      }
-      let isOpponentFinished = gameLayout.hasOpponent;
-      for (let i = 0; i < gameLayout.opponent.length; i++) {
-        if (!gameStats.opponentPicked[i]) {
-          isOpponentFinished = false;
-        }
-      }
-      let isFinished = isPlayerFinished || isOpponentFinished;
+      let isFinished = gameFinished()
       gameControls = <Stack direction="row" alignItems="center" justifyContent={"center"} 
         flexWrap="wrap" useFlexGap
         spacing={{
