@@ -95,6 +95,7 @@ export default function Home() {
     "opponent": [], // each item is (character, cardId)
     "player": [],
     "deckWidthPercentage": 70,
+    "giveAtMistake": true,
   })
   const [localRows, setLocalRows] = useState(gameLayout.rows);
   const [localColumns, setLocalColumns] = useState(gameLayout.columns);
@@ -118,17 +119,14 @@ export default function Home() {
     "slowRate": 0.2,
     "fastRate": 0.2,
   })
+  const [gamePlayerStats, setGamePlayerStats] = useState({
+    "startTimestamp": 0,
+    "allAccumulateTime": 0,
+    "correctAccumulateTime": 0,
+    "mistakeCount": 0,
+    "correctCount": 0,
+  })
 
-  function resetGameRoundStat() {
-    setGameStats({
-      ...gameStats,
-      "mistaken": {
-        "opponent": [],
-        "player": [],
-      },
-      "correctFoundBy": 0,
-    })
-  }
   function finishCurrentRound() {
     if (setGameOpponentClickTimeout !== null) {
       clearTimeout(gameOpponentClickTimeout);
@@ -165,6 +163,7 @@ export default function Home() {
       let playerGive = gameStats.mistaken.opponent.length - gameStats.mistaken.player.length;
       if (foundInPlayer && gameStats.correctFoundBy === 2) {playerGive -= 1;}
       if (foundInOpponent && gameStats.correctFoundBy === 1) {playerGive += 1;}
+      if (!gameLayout.giveAtMistake) {playerGive = 0;}
       // console.log("summing up ......................")
       // console.log("opponentMistake", gameStats.mistaken.opponent.length, "playerMistake", gameStats.mistaken.player.length);
       // console.log("foundInPlayer", foundInPlayer, "foundInOpponent", foundInOpponent);
@@ -257,6 +256,30 @@ export default function Home() {
     audioPlayerRef.current.load();
   }, [currentPlayingId]);
 
+  function gameFinished() {
+    let isPlayerFinished = true;
+    for (let i = 0; i < gameLayoutRef.current.player.length; i++) {
+      if (!gameStatsRef.current.playerPicked[i]) {
+        isPlayerFinished = false;
+      }
+    }
+    let isOpponentFinished = gameLayoutRef.current.hasOpponent;
+    for (let i = 0; i < gameLayoutRef.current.opponent.length; i++) {
+      if (!gameStatsRef.current.opponentPicked[i]) {
+        isOpponentFinished = false;
+      }
+    }
+    if (gameLayoutRef.current.hasOpponent) {
+      if (gameLayoutRef.current.giveAtMistake) {
+        return isPlayerFinished || isOpponentFinished
+      } else {
+        return isPlayerFinished && isOpponentFinished
+      }
+    } else {
+      return isPlayerFinished
+    }
+  }
+
   function opponentClick(currentPlayingId) {
     if (setGameOpponentClickTimeout !== null) {
       clearTimeout(gameOpponentClickTimeout);
@@ -268,22 +291,7 @@ export default function Home() {
       return;
     }
     // if game is finished return
-    {
-      let finished = true;
-      for (let i = 0; i < gameLayoutRef.current.player.length; i++) {
-        if (!gameStatsRef.current.playerPicked[i]) {
-          finished = false;
-        }
-      }
-      if (finished) {return;}
-      finished = gameLayoutRef.current.hasOpponent;
-      for (let i = 0; i < gameLayoutRef.current.opponent.length; i++) {
-        if (!gameStatsRef.current.opponentPicked[i]) {
-          finished = false;
-        }
-      }
-      if (finished) {return;}
-    }
+    if (gameFinished()) {return;}
     let mistakeRandom = Math.random();
     let mistake = mistakeRandom < gameOpponentProperties.mistakeRate;
     // console.log("mistake random", mistakeRandom, " rate", gameOpponentProperties.mistakeRate);
@@ -1037,7 +1045,7 @@ export default function Home() {
         {obtained.length}
       </Typography>
       let widthPercentage = Math.floor(gameLayout.deckWidthPercentage / gameLayout.columns) + "%";
-      let overlapPercentage = Math.floor(gameLayout.deckWidthPercentage / gameLayout.columns / 3 * 2) + "%";
+      let overlapPercentage = Math.floor(gameLayout.deckWidthPercentage / gameLayout.columns / 2) + "%";
       let dummyCardName = data[Object.keys(data)[0]]["card"];
       if (typeof dummyCardName === 'string') {
         dummyCardName = dummyCardName;
@@ -1118,7 +1126,7 @@ export default function Home() {
     let gameControls = <></>
     if (!gameStats.started) {
       let enabled = (gameLayout.player.length > 0 && (!gameLayout.hasOpponent || gameLayout.opponent.length > 0));
-      gameControls = <Stack direction="row" spacing={2} alignItems="center" justifyContent={"center"}>
+      gameControls = <Stack direction="column" spacing={1} alignItems="center" justifyContent={"center"}>
         <Button variant="outlined" className="chinese"
           sx={{
             width: "auto"
@@ -1151,10 +1159,12 @@ export default function Home() {
               },
               "correctFoundBy": 0,
             })
-            showAlert("游戏开始。第一次请点击“播放|暂停”，之后请点击“下一曲”。")
             reroll();
           }}
         >开始</Button>
+        <Typography variant="body1" className="chinese">
+          游戏开始时，第一次请点击“播放|暂停”，之后请点击“下一曲”。
+        </Typography>
       </Stack>
     } else {
       let isPlayerFinished = true;
@@ -1413,6 +1423,21 @@ export default function Home() {
                     inputProps={{min: 0, max: 0.5, step: 0.05}}
                   />
                 </Stack> : <></>}
+                {gameLayout.hasOpponent ? <Stack direction="column" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Grid item className="chinese">
+                    <CheckBox id="giveAtMistake" label="giveAtMistake" variant="outlined" size="small"
+                      checked={gameLayout.giveAtMistake}
+                      onChange={(event) => setGameLayout({...gameLayout, "giveAtMistake": event.target.checked})}
+                      inputProps={{ 'aria-label': 'controlled' }}
+                    />传统模式
+                  </Grid>
+                  <Typography variant="body2" className="chinese">
+                    传统模式下，正确选择对手区域卡片，将随机给与一张我方区域卡片给对手。错误选择卡片时，将从对方区域卡片中随机选择一张卡片给与我方区域。获胜条件为我方区域清空全部卡片。
+                  </Typography>
+                  <Typography variant="body2" className="chinese">
+                    非传统模式下，选择卡片错误无惩罚，清空所有卡片时游戏结束，获胜者为获取卡片最多者。
+                  </Typography>
+                </Stack> : <></>}
               </Stack>
 
               <Divider />
@@ -1428,6 +1453,7 @@ export default function Home() {
                 </Button>
                 <Button variant="outlined" width="100" className="chinese" 
                   sx={{width: {sm: "20%", xs: "30%"}}}
+                  disabled={gameLayout.player.length === gameLayout.columns * gameLayout.rows}
                   onClick={() => {
                     let selectableCharacters = []
                     Object.entries(data).forEach(([character, value], index) => {
