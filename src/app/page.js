@@ -24,7 +24,7 @@ import Image from 'next/image';
 const musicFilePrefix = "";
 
 import localFont from "next/font/local";
-import { Alert, Collapse } from "@mui/material";
+import { Alert, Collapse, Container, Link } from "@mui/material";
 const inter = localFont({ 
   src: [{
     path: './yumin.ttf',
@@ -126,6 +126,14 @@ export default function Home() {
     "correctClicks": 0,
   })
   const [gameRoundStartTimestamp, setGameRoundStartTimestamp] = useState(0);
+
+  const audioPlayerRef = useRef(null);
+  const countdownPlayerRef = useRef(null);
+  const gameStatsRef = useRef(gameStats);
+  const gameLayoutRef = useRef(gameLayout);
+  const gamePlayerStatsRef = useRef(gamePlayerStats);
+  const gameOpponentPropertiesRef = useRef(gameOpponentProperties);
+  
 
   function finishCurrentRound() {
     if (setGameOpponentClickTimeout !== null) {
@@ -256,12 +264,6 @@ export default function Home() {
     })
   }
 
-  const audioPlayerRef = useRef(null);
-  const countdownPlayerRef = useRef(null);
-  const gameStatsRef = useRef(gameStats);
-  const gameLayoutRef = useRef(gameLayout);
-  const gamePlayerStatsRef = useRef(gamePlayerStats);
-
   useEffect(() => {
     gameStatsRef.current = gameStats;
     gameLayoutRef.current = gameLayout;
@@ -310,8 +312,8 @@ export default function Home() {
     // if game is finished return
     if (gameFinished()) {return;}
     let mistakeRandom = Math.random();
-    let mistake = mistakeRandom < gameOpponentProperties.mistakeRate;
-    // console.log("mistake random", mistakeRandom, " rate", gameOpponentProperties.mistakeRate);
+    let mistake = mistakeRandom < gameOpponentPropertiesRef.current.mistakeRate;
+    console.log("mistake random", mistakeRandom, " rate", gameOpponentPropertiesRef.current.mistakeRate);
     // console.log("currentPlayingId", currentPlayingId);
     if (!mistake) {
       let found = false;
@@ -837,7 +839,7 @@ export default function Home() {
 
   function renderAllMusicPlayer() {
     return (
-      <Grid container spacing={2} padding={2}>
+      <Grid container spacing={2} padding={0}>
         
         <div display="none">
           <audio ref={countdownPlayerRef}>
@@ -1302,11 +1304,26 @@ export default function Home() {
       <Grid item sm={12} xs={12}>
         <Stack spacing={2}>
           <Paper elevation={3} padding={2} className="chinese">
-            <CheckBox 
-              checked={gameSimulatorEnabled}
-              onChange={(event) => setGameSimulatorEnabled(event.target.checked)}
-              inputProps={{ 'aria-label': 'controlled' }}
-            />模拟器
+            <Grid container alignItems="center">
+              <Grid container sm={6} xs={6} alignItems="center">
+                <CheckBox 
+                  checked={gameSimulatorEnabled}
+                  onChange={(event) => setGameSimulatorEnabled(event.target.checked)}
+                  inputProps={{ 'aria-label': 'controlled' }}
+                />
+                <Typography variant="body" className="chinese">模拟器</Typography>
+              </Grid>
+              <Grid container sm={6} xs={6} alignItems="center" justifyContent="flex-end">
+                <Link 
+                  href="https://gitlab.com/lightbulb1281/card-player" 
+                  marginRight={2}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  源代码
+                </Link>
+              </Grid>
+            </Grid>
           </Paper>
         </Stack>
       </Grid>
@@ -1588,19 +1605,19 @@ export default function Home() {
   function renderAll() {
 
     return (
-      <>
+      <Stack spacing={0}>
         <Collapse in={alertInfo.message !== ""}>
           <Alert severity="warning" className="chinese">
             {alertInfo.message}
           </Alert>
         </Collapse>
         {renderGameSimulator()}
-        <div style={{
+        <Box style={{
           display: gameSimulatorEnabled ? "none" : "block",
-        }}>
+        }} padding={2} paddingTop={0}>
           {renderAllMusicPlayer()}
-        </div>  
-      </>
+        </Box>  
+      </Stack>
     )
   }
 
