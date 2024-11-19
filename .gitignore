@@ -36,6 +36,5 @@ yarn-error.log*
 next-env.d.ts
 
 public/music
-public/cards
 public/original_cards
 public/original_music
