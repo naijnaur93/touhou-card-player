@@ -54,6 +54,7 @@ export default function Home() {
 
   const [isLoading, setIsloading] = useState(true);
   const [data, setData] = useState({});
+  const [musicSources, setMusicSources] = useState({});
   const [playOrder, setPlayOrder] = useState([]);
   const [currentPlayingId, setCurrentPlayingId] = useState(0);
   const [cardIds, setCardIds] = useState({});
@@ -537,6 +538,10 @@ export default function Home() {
       musicUrl = musicList;
     } else {
       musicUrl = musicList[musicId];
+    }
+    // if musicUrl is in the musicSources dict keys, use it
+    if (musicSources[musicUrl] !== undefined) {
+      return musicSources[musicUrl];
     }
     return "/music/" + musicFilePrefix + musicUrl;
   }
@@ -1627,6 +1632,9 @@ export default function Home() {
     fetch('data.json')
       .then(response => response.json())
       .then(data => {
+        setData(data["data"]);
+        setMusicSources(data["sources"]);
+        data = data["data"];
         if (!isLoading) return;
         // get the length of the dictionary
         let characterCount = Object.keys(data).length;
@@ -1657,7 +1665,6 @@ export default function Home() {
           }
         });
         // set the state
-        setData(data);
         setPlayOrder(playOrder);
         setCardIds(cardIds);
         setMusicIds(musicIds);
