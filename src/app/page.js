@@ -544,7 +544,7 @@ export default function Home() {
     if (musicSources[musicUrl] !== undefined) {
       return musicSources[musicUrl];
     }
-    return "/music/" + musicFilePrefix + musicUrl;
+    return "./music/" + musicFilePrefix + musicUrl;
   }
 
   function reroll() {
@@ -849,7 +849,7 @@ export default function Home() {
         
         <div display="none">
           <audio ref={countdownPlayerRef}>
-            <source src="/Bell3.mp3" type="audio/mpeg" />
+            <source src="./Bell3.mp3" type="audio/mpeg" />
           </audio>
         </div>
 
