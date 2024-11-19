@@ -1321,7 +1321,7 @@ export default function Home() {
               </Grid>
               <Grid container sm={6} xs={6} alignItems="center" justifyContent="flex-end">
                 <Link 
-                  href="https://gitlab.com/lightbulb1281/card-player" 
+                  href="https://github.com/lightbulb128/touhou-card-player" 
                   marginRight={2}
                   target="_blank"
                   rel="noopener noreferrer"
