@@ -22,6 +22,7 @@ import Divider from '@mui/material/Divider';
 import Image from 'next/image';
 
 const musicFilePrefix = "";
+const cardFilePrefix = "./cards/"
 
 import localFont from "next/font/local";
 import { Alert, Collapse, Container, Link } from "@mui/material";
@@ -589,7 +590,7 @@ export default function Home() {
             width: "30%",
           }}>
           <img key={card} 
-            src={"/cards/" + card} 
+            src={cardFilePrefix + card} 
             alt={card}
             style={{width: "100%", height: "auto"}}
           />
@@ -960,7 +961,7 @@ export default function Home() {
                   width: "100%",
                 }}>
                 <img key={character + index} 
-                  src={"/cards/" + card} 
+                  src={cardFilePrefix + card} 
                   alt={card}
                   style={{width: "100%", height: "auto"}}
                 />
@@ -1048,7 +1049,7 @@ export default function Home() {
                   height: "100%"
                 }}>
                   {visible && <img key={key} 
-                    src={"/cards/" + cardName} 
+                    src={cardFilePrefix + cardName} 
                     alt={cardName}
                     style={{
                       width: "100%", height: "auto",
@@ -1094,7 +1095,7 @@ export default function Home() {
           <Box sx={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%"
           }}>
             {false && <img key={key} 
-              src={"/cards/" + dummyCardName} 
+              src={cardFilePrefix + dummyCardName} 
               alt={dummyCardName}
               style={{
                 width: "100%", height: "auto",
@@ -1149,7 +1150,7 @@ export default function Home() {
           }}
           >
             <img key={"" + renderedCards.length} 
-              src={"/cards/" + cardName} 
+              src={cardFilePrefix + cardName} 
               alt={cardName}
               style={{
                 width: "100%", height: "auto",
