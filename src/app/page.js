@@ -42,6 +42,72 @@ const darkTheme = createTheme({
   }
 });
 
+var docCookies = {
+  getItem: function (sKey) {
+    return (
+      decodeURIComponent(
+        document.cookie.replace(
+          new RegExp(
+            "(?:(?:^|.*;)\\s*" +
+              encodeURIComponent(sKey).replace(/[-.+*]/g, "\\$&") +
+              "\\s*\\=\\s*([^;]*).*$)|^.*$",
+          ),
+          "$1",
+        ),
+      ) || null
+    );
+  },
+  setItem: function (sKey, sValue, vEnd, sPath, sDomain, bSecure) {
+    if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) {
+      return false;
+    }
+    var sExpires = "";
+    if (vEnd) {
+      switch (vEnd.constructor) {
+        case Number:
+          sExpires =
+            vEnd === Infinity
+              ? "; expires=Fri, 31 Dec 9999 23:59:59 GMT"
+              : "; max-age=" + vEnd;
+          break;
+        case String:
+          sExpires = "; expires=" + vEnd;
+          break;
+        case Date:
+          sExpires = "; expires=" + vEnd.toUTCString();
+          break;
+      }
+    }
+    document.cookie =
+      encodeURIComponent(sKey) +
+      "=" +
+      encodeURIComponent(sValue) +
+      sExpires +
+      (sDomain ? "; domain=" + sDomain : "") +
+      (sPath ? "; path=" + sPath : "") +
+      (bSecure ? "; secure" : "");
+    return true;
+  },
+  removeItem: function (sKey, sPath, sDomain) {
+    if (!sKey || !this.hasItem(sKey)) {
+      return false;
+    }
+    document.cookie =
+      encodeURIComponent(sKey) +
+      "=; expires=Thu, 01 Jan 1970 00:00:00 GMT" +
+      (sDomain ? "; domain=" + sDomain : "") +
+      (sPath ? "; path=" + sPath : "");
+    return true;
+  },
+  hasItem: function (sKey) {
+    return new RegExp(
+      "(?:^|;\\s*)" +
+        encodeURIComponent(sKey).replace(/[-.+*]/g, "\\$&") +
+        "\\s*\\=",
+    ).test(document.cookie);
+  }
+};
+
 function randomlyPermutePlayOrder(playOrder) {
   let newPlayOrder = playOrder.slice();
   for (let i = newPlayOrder.length - 1; i > 0; i--) {
@@ -73,6 +139,59 @@ export default function Home() {
     "disappearTimeout": null,
     "message": "",
   })
+
+  function recordCookie(playOrder, musicIds, currentPlayingId) {
+    // create a list of characters for indexing
+    let characters = [];
+    for (let key in data) {
+      characters.push(key);
+    }
+    // record number of characters
+    docCookies.setItem("numCharacters", characters.length, Infinity);
+
+    // record playOrder
+    if (playOrder !== null) {
+      let playOrderIdsInData = [];
+      playOrder.forEach((character) => {
+        // find the index of character in characters
+        let index = -1;
+        for (let i = 0; i < characters.length; i++) {
+          if (characters[i] === character) {
+            index = i;
+            break;
+          }
+        }
+        if (index !== -1) {
+          playOrderIdsInData.push(index);
+        }
+      });
+      docCookies.setItem("playOrder", playOrderIdsInData.join(","), Infinity);
+    }
+
+    // record musicIds
+    if (musicIds !== null) {
+      let musicIdsList = [];
+      for (let i = 0; i < characters.length; i++) {
+        let character = characters[i];
+        let musicId = musicIds[character];
+        musicIdsList.push(musicId);
+      }
+      docCookies.setItem("musicIds", musicIdsList.join(","), Infinity);
+    }
+
+    // record nowplaying
+    if (currentPlayingId !== null) {
+      let nowPlayingIndex = -1;
+      for (let i = 0; i < characters.length; i++) {
+        if (characters[i] === currentPlayingId) {
+          nowPlayingIndex = i;
+          break;
+        }
+      }
+      docCookies.setItem("currentPlayingId", nowPlayingIndex, Infinity);
+    }
+  }
+
 
   function showAlert(message) {
     if (alertInfo.disappearTimeout !== null) {
@@ -412,6 +531,7 @@ export default function Home() {
     setHaveInput(true);
     let previousPlayingId = currentPlayingId;
     setCurrentPlayingId(playOrder[index]);
+    recordCookie(null, null, playOrder[index]);
 
     if (gameSimulatorEnabled) {
       setGameRoundStartTimestamp(Date.now());
@@ -450,6 +570,7 @@ export default function Home() {
       index = (index - 1 + playOrder.length) % playOrder.length;
     }
     setCurrentPlayingId(playOrder[index]);
+    recordCookie(null, null, playOrder[index]);
     // force audio reload
     audioPlayerRef.current.load();
   }
@@ -479,7 +600,7 @@ export default function Home() {
     }
   }
 
-  function getMusicName(character, musicId, withAlbum = false) {
+  function getMusicName(character, musicId, withAlbum = false, albumNameInList = false) {
     let musicsList = data[character]["music"];
     let musicName = "";
     // if musicsList is a str, then musicId must be 0
@@ -526,6 +647,9 @@ export default function Home() {
       }
     }
     if (withAlbum) {
+      if (albumNameInList) {
+        return [musicName, albumName];
+      }
       return musicName + " (" + albumName + ") ";
     }
     return musicName;
@@ -547,14 +671,14 @@ export default function Home() {
     return "./music/" + musicFilePrefix + musicUrl;
   }
 
-  function reroll() {
+  function reroll(ordered = false) {
     setHaveInput(false);
     let ids = []
     Object.entries(data).forEach(([character, value]) => {
       ids.push(character);
     });
     // permute the ids
-    let permuted = randomlyPermutePlayOrder(ids);
+    let permuted = (ordered) ? (ids) : randomlyPermutePlayOrder(ids);
     setPlayOrder(permuted);
     let first = 0;
     while (musicIds[permuted[first]] === -1) {
@@ -562,15 +686,18 @@ export default function Home() {
     }
     if (ids.length > 0) {
       setCurrentPlayingId(permuted[first]);
+      recordCookie(permuted, null, permuted[first]);
       // force audio reload
       audioPlayerRef.current.load();
+    } else {
+      recordCookie(permuted, null, null);
     }
   }
 
   function renderCurrentPlaying() {
     let character = currentPlayingId;
     let musicId = musicIds[character];
-    let musicName = getMusicName(character, musicId);
+    let [musicName, albumName] = getMusicName(character, musicId, true, true);
     let musicUrl = getMusicUrl(character, musicId);
     let cards = []
     let cardList = data[character]["card"];
@@ -600,6 +727,7 @@ export default function Home() {
     return (
       <Box padding={2} align="center">
         <Typography sx={{fontSize: "1.5em"}}>{musicName}</Typography>
+        <Typography sx={{fontSize: "1.2em"}}>{albumName}</Typography>
         <Typography sx={{fontSize: "1.2em"}}>{character}</Typography>
         <Stack direction="row" spacing={2} padding={2} alignItems="center" justifyContent={"center"}>
           {cardComponents}
@@ -627,11 +755,13 @@ export default function Home() {
           }} variant="outlined" width="100" className="chinese">播放|暂停</Button>
           <Button onClick={nextMusic} variant="outlined" width="100" className="chinese">下一曲</Button>
         </Stack>
-        <Stack direction="row" spacing={0} padding={0} alignItems="center" justifyContent={"center"}>
-          <Button onClick={reroll} variant="outlined" width="100" className="chinese">
+        <Stack direction="row" spacing={2}  padding={0} alignItems="center" justifyContent={"center"}>
+          <Button onClick={() => {reroll(false);}} variant="outlined" color="warning" width="100" className="chinese">
             重新抽选
           </Button>
-          
+          <Button onClick={() => {reroll(true);}} variant="outlined" color="warning" width="100" className="chinese">
+            顺序排列
+          </Button>
         </Stack>
         <Grid container paddingTop={2} alignItems="center" justifyContent={"center"}>
           <Grid item xs={4}>
@@ -687,6 +817,7 @@ export default function Home() {
         }}
           onClick={() => {
             setCurrentPlayingId(character)
+            recordCookie(null, null, character);
             // force audio reload
             audioPlayerRef.current.load();
           }}
@@ -717,6 +848,7 @@ export default function Home() {
                 newMusicIds[key] = presetData[key];
               }
               setMusicIds(newMusicIds);
+              recordCookie(null, newMusicIds, null);
               setIdPresetHelp(presetName);
               // if currentPlayingId is in the preset
               if (currentPlayingId in presetData) {
@@ -727,6 +859,7 @@ export default function Home() {
                     index = (index + 1) % playOrder.length;
                   }
                   setCurrentPlayingId(playOrder[index]);
+                  recordCookie(null, null, playOrder[index]);
                 }
               }
             }} variant="outlined" width="100" className="chinese">{presetName}</Button>
@@ -785,12 +918,14 @@ export default function Home() {
               }
               newMusicIds[character] = parseInt(event.target.value);
               setMusicIds(newMusicIds);
+              recordCookie(null, newMusicIds, null);
               if (currentPlayingId === character && newMusicIds[character] === -1) {
                 let index = (playOrder.indexOf(character) + 1) % playOrder.length;
                 while (newMusicIds[playOrder[index]] === -1) {
                   index = (index + 1) % playOrder.length;
                 }
                 setCurrentPlayingId(playOrder[index]);
+                recordCookie(null, null, playOrder[index]);
               }
             }}
           >
@@ -1654,6 +1789,41 @@ export default function Home() {
         Object.entries(data).forEach(([key, value]) => {
           playOrder.push(key);
         });
+        let currentPlayingId = playOrder[0];
+
+        // create a list of all characters, in order to load cookies
+        let characters = []
+        Object.entries(data).forEach(([key, value]) => {
+          characters.push(key);
+        });
+        let cookieNumCharacters = docCookies.getItem("numCharacters");
+        if (cookieNumCharacters !== null && parseInt(cookieNumCharacters) === characterCount) {
+          // load cookies only if the number of characters is the same
+          let cookiePlayOrder = docCookies.getItem("playOrder");
+          if (cookiePlayOrder !== null) {
+            cookiePlayOrder = cookiePlayOrder.split(",");
+            let newPlayOrder = []
+            cookiePlayOrder.forEach((id) => {
+              newPlayOrder.push(characters[parseInt(id)]);
+            })
+            playOrder = newPlayOrder;
+          }
+          let cookieMusicIds = docCookies.getItem("musicIds");
+          if (cookieMusicIds !== null) {
+            cookieMusicIds = cookieMusicIds.split(",");
+            let newMusicIds = {}
+            cookieMusicIds.forEach((id, index) => {
+              newMusicIds[characters[index]] = parseInt(id);
+            })
+            musicIds = newMusicIds;
+          }
+          let cookieCurrentPlayingId = docCookies.getItem("currentPlayingId");
+          if (cookieCurrentPlayingId !== null) {
+            currentPlayingId = characters[parseInt(cookieCurrentPlayingId)];
+          }
+        }
+        
+
         // at start all tags are not banned
         let tagsBanned = {}
         Object.entries(data).forEach(([key, value]) => {
@@ -1669,7 +1839,7 @@ export default function Home() {
         setPlayOrder(playOrder);
         setCardIds(cardIds);
         setMusicIds(musicIds);
-        setCurrentPlayingId(playOrder[0]);
+        setCurrentPlayingId(currentPlayingId);
         setIsloading(false);
         // audioPlayerRef.current.volume = 0.5;
         
