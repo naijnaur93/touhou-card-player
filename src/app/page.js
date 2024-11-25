@@ -41,6 +41,12 @@ const darkTheme = createTheme({
   }
 });
 
+const cardStyleSet = [
+  ["dairi-sd", "./cards/"],
+  ["thwiki-sd", "./cards-thwiki/"],
+  ["zun", "./cards-zun/"],
+]
+
 var docCookies = {
   getItem: function (sKey) {
     return (
@@ -973,6 +979,7 @@ export default function Home() {
         </FormControl>
       );
     });
+
     return (
       <Box overflow="auto" padding={2}>
         <Stack spacing={2}>
@@ -991,26 +998,20 @@ export default function Home() {
                 docCookies.setItem("cardFilePrefix", event.target.value, Infinity, "/");
               }}
             >
-              <FormControlLabel 
-                key={0} 
-                value="./cards/"
-                control={<Radio />} 
-                label="dairi-sd"
-                size="small"
-                sx={{
-                  height: "1.5em",
-                }}
-              />
-              <FormControlLabel 
-                key={-1} 
-                value="./cards-thwiki/"
-                control={<Radio />} 
-                label="thwiki-sd"
-                size="small"
-                sx={{
-                  height: "1.5em",
-                }}
-              />
+              {
+                cardStyleSet.map((style, index) => {
+                  return <FormControlLabel 
+                    key={index} 
+                    value={style[1]}
+                    control={<Radio />} 
+                    label={style[0]}
+                    size="small"
+                    sx={{
+                      height: "1.5em",
+                    }}
+                  />
+                })
+              }
             </RadioGroup>
           </FormControl>
 
