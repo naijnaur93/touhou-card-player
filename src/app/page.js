@@ -22,7 +22,6 @@ import Divider from '@mui/material/Divider';
 import Image from 'next/image';
 
 const musicFilePrefix = "";
-const cardFilePrefix = "./cards/"
 
 import localFont from "next/font/local";
 import { Alert, Collapse, Container, Link } from "@mui/material";
@@ -85,7 +84,8 @@ var docCookies = {
       sExpires +
       (sDomain ? "; domain=" + sDomain : "") +
       (sPath ? "; path=" + sPath : "") +
-      (bSecure ? "; secure" : "");
+      (bSecure ? "; secure" : "") +
+      "; SameSite=None; Secure";
     return true;
   },
   removeItem: function (sKey, sPath, sDomain) {
@@ -139,6 +139,7 @@ export default function Home() {
     "disappearTimeout": null,
     "message": "",
   })
+  const [cardFilePrefix, setCardFilePrefix] = useState("./cards/");
 
   function recordCookie(playOrder, musicIds, currentPlayingId) {
     // create a list of characters for indexing
@@ -710,17 +711,26 @@ export default function Home() {
     for (let i = 0; i < cards.length; i++) {
       let card = cards[i];
       cardComponents.push(
-        // 30% of the width
         <Paper key={card} variant="outlined"
           sx={{
             backgroundColor: "white",
             width: "30%",
           }}>
-          <img key={card} 
-            src={cardFilePrefix + card} 
-            alt={card}
-            style={{width: "100%", height: "auto"}}
-          />
+          <Box sx={{position: "relative", paddingTop: "142.25%", justifyContent: "center", alignItems: "center"}}>
+            <img key={card} 
+              src={cardFilePrefix + card} 
+              alt={card}
+              style={{
+                width: "100%", 
+                height: "auto", 
+                position: "absolute", 
+                left: 0,
+                objectFit: "cover",
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+            />
+          </Box>
         </Paper>
       );
     }
@@ -966,6 +976,44 @@ export default function Home() {
     return (
       <Box overflow="auto" padding={2}>
         <Stack spacing={2}>
+        <Typography variant="h6" className="chinese">卡牌风格</Typography>
+          <FormControl>
+            <RadioGroup 
+              key="cardStyle" 
+              variant="outlined"
+              value={cardFilePrefix} 
+              onChange={(event) => {
+                let newMusicIds = {}
+                for (let key in musicIds) {
+                  newMusicIds[key] = musicIds[key];
+                }
+                setCardFilePrefix(event.target.value);
+                docCookies.setItem("cardFilePrefix", event.target.value, Infinity, "/");
+              }}
+            >
+              <FormControlLabel 
+                key={0} 
+                value="./cards/"
+                control={<Radio />} 
+                label="dairi-sd"
+                size="small"
+                sx={{
+                  height: "1.5em",
+                }}
+              />
+              <FormControlLabel 
+                key={-1} 
+                value="./cards-thwiki/"
+                control={<Radio />} 
+                label="thwiki-sd"
+                size="small"
+                sx={{
+                  height: "1.5em",
+                }}
+              />
+            </RadioGroup>
+          </FormControl>
+
           <Typography variant="h6" className="chinese">预设快速选择</Typography>
           <Grid container spacing={2}>
             {presets}
@@ -1068,10 +1116,11 @@ export default function Home() {
               xs: "0 0 30%",
             }
           }} padding={0}>
-            <Button key={character + index} variant="outlined" width="100%" size="small"
+            <Button key={character + index} variant="outlined" size="small"
               sx={{
                 margin: 0,
                 spacing: 0,
+                width: "100%",
               }}
               color={option === 1 ? "primary" : "error"}
               onClick={() => {
@@ -1089,18 +1138,34 @@ export default function Home() {
                 }
               }}
             >
-              <Stack key={character + index} alignItems="center" justifyContent={"center"}>
-              <Paper key={character + index} variant="outlined"
-                sx={{
-                  backgroundColor: {1: "cornflowerblue", 2: "lightsalmon"}[option],
-                  width: "100%",
-                }}>
-                <img key={character + index} 
-                  src={cardFilePrefix + card} 
-                  alt={card}
-                  style={{width: "100%", height: "auto"}}
-                />
-              </Paper>
+              <Stack key={character + index} alignItems="center" justifyContent={"center"} sx={{width: "100%"}}>
+                <Paper key={character + index} variant="outlined"
+                  sx={{
+                    backgroundColor: {1: "cornflowerblue", 2: "lightsalmon"}[option],
+                    width: "100%",
+                  }}>
+                  <Box sx={{
+                    width: "100%", 
+                    position: "relative", 
+                    paddingTop: "142.25%", 
+                    justifyContent: "center", alignItems: "center"
+                  }}>
+                    <img key={character + index} 
+                      src={cardFilePrefix + card} 
+                      alt={card}
+                      style={{
+                        width: "100%", 
+                        height: "auto", 
+                        position: "absolute", 
+                        top: 0,
+                        left: 0,
+                        objectFit: "cover",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                      }}
+                    />
+                  </Box>
+                </Paper>
                 {option === 1 ? 
                   <Typography variant="body2" className="chinese">添加</Typography> :
                   <Typography variant="body2" className="chinese">移除</Typography>
@@ -1183,14 +1248,24 @@ export default function Home() {
                   width: "100%",
                   height: "100%"
                 }}>
-                  {visible && <img key={key} 
+                  {visible && <Box sx={{
+                    position: "relative", paddingTop: "142.25%", 
+                    justifyContent: "center", alignItems: "center",
+                    transform: isOpponent ? "rotate(180deg)" : "rotate(0deg)"
+                  }}>
+                    <img key={key} 
                     src={cardFilePrefix + cardName} 
                     alt={cardName}
                     style={{
-                      width: "100%", height: "auto",
-                      transform: isOpponent ? "rotate(180deg)" : "rotate(0deg)"
+                      width: "100%", 
+                      height: "auto", 
+                      position: "absolute", 
+                      left: 0,
+                      objectFit: "cover",
+                      top: "50%",
+                      transform: "translateY(-50%)",
                     }}
-                  />}
+                  /></Box>}
                 </Box>
               </Paper>
             </Box>
@@ -1822,7 +1897,10 @@ export default function Home() {
             currentPlayingId = characters[parseInt(cookieCurrentPlayingId)];
           }
         }
-        
+        let cookieCardFilePrefix = docCookies.getItem("cardFilePrefix");
+        if (cookieCardFilePrefix !== null) {
+          setCardFilePrefix(cookieCardFilePrefix);
+        }
 
         // at start all tags are not banned
         let tagsBanned = {}
