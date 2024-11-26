@@ -43,41 +43,41 @@ const darkTheme = createTheme({
 
 const cardStyleSet = [
   ["dairi-sd", "./cards/", 
-    <Typography color="gray">
+    <Typography color="gray" key="0">
       Free super-deformed tachies from dairi Twitter <Link href="https://x.com/dairi155">@dairi155</Link>. 
       I decided that some
       characters should look happier than others, and some gloomier.
     </Typography>
   ],
   ["dairi", "./cards-dairi/", 
-    <Typography color="gray">
+    <Typography color="gray" key="1">
       Free super-deformed tachies from dairi Twitter <Link href="https://x.com/dairi155">@dairi155</Link>. Respect to the very diligent illustrator.
     </Typography>
   ],
   ["enbu", "./cards-enbu/", 
-    <Typography color="gray">
+    <Typography color="gray" key="2">
       Free tachies from RPG game <Link hrerf="http://www.fo-lens.net/enbu_ap/">幻想人形演舞-ユメノカケラ-</Link>. 
-      Well, don't blame me if some
-      characters' head seem greater than others'.
+      Well, don&apos;t blame me if some
+      characters&apos; head seem greater than others&apos;.
     </Typography>
   ],
   ["enbu-dolls", "./cards-enbu-dolls/", 
-    <Typography color="gray">
+    <Typography color="gray" key="3">
       Free tachies from RPG game <Link href="http://www.fo-lens.net/enbu_ap/">幻想人形演舞-ユメノカケラ-</Link>. They were intended for the dolls as
-      a part of the original game. Cute aren't they?
+      a part of the original game. Cute aren&apos;t they?
     </Typography>
   ],
   ["thwiki-sd", "./cards-thwiki/", 
-    <Typography color="gray">
+    <Typography color="gray" key="4">
       Art from <Link href="https://thwiki.cc/">thbwiki</Link>. The music here is also linked from their storage so I can host
       this website without renting a server. 
     </Typography>
   ],
   ["zun", "./cards-zun/", 
-    <Typography color="gray">
-      Well, cheers for those who love ZUN's art. Who else on earth would use these for playing?
-      I don't have the copyright and should not have used
-      these here, but let's pray no one cares.
+    <Typography color="gray" key="5">
+      Well, cheers for those who love ZUN&apos;s art. Who else on earth would use these for playing?
+      I don&apos;t have the copyright and should not have used
+      these here, but let&apos;s pray no one cares.
     </Typography>
   ],
 ]
