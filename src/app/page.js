@@ -45,7 +45,8 @@ const cardStyleSet = [
   ["dairi-sd", "./cards/"],
   ["thwiki-sd", "./cards-thwiki/"],
   ["zun", "./cards-zun/"],
-  ["enbu", "./cards-enbu/"]
+  ["enbu", "./cards-enbu/"],
+  ["enbu-dolls", "./cards-enbu-dolls/"],
 ]
 
 var docCookies = {

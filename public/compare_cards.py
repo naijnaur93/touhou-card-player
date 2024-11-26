@@ -2,7 +2,7 @@ import os
 import shutil
 
 path1 = "cards"
-path2 = "cards-enbu"
+path2 = "cards-enbu-dolls"
 
 if __name__ == "__main__":
     r1 = os.listdir(path1)
