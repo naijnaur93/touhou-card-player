@@ -1526,7 +1526,7 @@ export default function Home() {
         <Stack spacing={2}>
           <Paper elevation={3} padding={2} className="chinese">
             <Grid container alignItems="center">
-              <Grid container sm={6} xs={6} alignItems="center">
+              <Grid container sm={4} xs={4} alignItems="center">
                 <CheckBox 
                   checked={gameSimulatorEnabled}
                   onChange={(event) => setGameSimulatorEnabled(event.target.checked)}
@@ -1534,7 +1534,23 @@ export default function Home() {
                 />
                 <Typography variant="body" className="chinese">模拟器</Typography>
               </Grid>
-              <Grid container sm={6} xs={6} alignItems="center" justifyContent="flex-end">
+              <Grid container sm={4} xs={4} alignItems="center" justifyContent="center">
+                <Button variant="text" color="warning" onClick={() => {
+                  for (let key in data) {
+                    if (key.indexOf("アリス") !== -1) {
+                      if (musicIds[key] !== -1) {
+                        setCurrentPlayingId(key);
+                      }
+                      break;
+                    }
+                  }
+                }} style={{
+                  textTransform: "none"
+                }}>
+                  We need more Alice!
+                </Button>
+              </Grid>
+              <Grid container sm={4} xs={4} alignItems="center" justifyContent="flex-end">
                 <Link 
                   href="https://github.com/lightbulb128/touhou-card-player" 
                   marginRight={2}
