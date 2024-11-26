@@ -43,10 +43,11 @@ const darkTheme = createTheme({
 
 const cardStyleSet = [
   ["dairi-sd", "./cards/"],
-  ["thwiki-sd", "./cards-thwiki/"],
-  ["zun", "./cards-zun/"],
+  ["dairi", "./cards-dairi/"],
   ["enbu", "./cards-enbu/"],
   ["enbu-dolls", "./cards-enbu-dolls/"],
+  ["thwiki-sd", "./cards-thwiki/"],
+  ["zun", "./cards-zun/"],
 ]
 
 var docCookies = {
@@ -988,6 +989,7 @@ export default function Home() {
         <Typography variant="h6" className="chinese">卡牌风格</Typography>
           <FormControl>
             <RadioGroup 
+              row
               key="cardStyle" 
               variant="outlined"
               value={cardFilePrefix} 

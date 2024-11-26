@@ -1,13 +1,21 @@
 import os
 
-path = "./cards-thwiki/"
+path = "./cards-dairi-original/"
 
 def rename_file(filename):
     nf = filename
     if nf.endswith(".png"):
         nf = nf[:-4]
-    if nf.endswith("（Q版立绘）"):
-        nf = nf[:-6]
+    if nf.endswith("（余裕）"):
+        nf = nf[:-4]
+    if nf.endswith("（微笑）"):
+        nf = nf[:-4]
+    if nf.endswith("（余裕1）"):
+        nf = nf[:-5]
+    if nf.endswith("（普通）"):
+        nf = nf[:-4]
+    if nf.endswith("（笑い）"):
+        nf = nf[:-4]
     nf = nf + ".png"
     return nf
 

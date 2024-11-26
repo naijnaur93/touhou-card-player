@@ -8,8 +8,8 @@ import os
 import numpy as np
 import shutil
 
-original_path = "cards-enbu-original"
-adjusted_path = "cards-enbu"
+original_path = "cards-dairi-original"
+adjusted_path = "cards-dairi"
 
 def cut_card(image: np.ndarray):
     top = 0
