@@ -8,8 +8,8 @@ import os
 import numpy as np
 import shutil
 
-original_path = "cards-zun-original"
-adjusted_path = "cards-zun"
+original_path = "cards-enbu-original"
+adjusted_path = "cards-enbu"
 
 def adjust_cards(filename):
     print(f"Adjusting {filename}")
@@ -40,6 +40,7 @@ if __name__ == "__main__":
     if not os.path.exists(adjusted_path):
         os.makedirs(adjusted_path)
     for filename in os.listdir(original_path):
-        adjust_cards(filename)
+        if filename.endswith(".png"):
+            adjust_cards(filename)
 
 
