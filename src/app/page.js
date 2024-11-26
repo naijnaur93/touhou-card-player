@@ -570,7 +570,6 @@ export default function Home() {
       index = (index + 1) % playOrder.length;
     }
 
-    setHaveInput(true);
     let previousPlayingId = currentPlayingId;
     setCurrentPlayingId(playOrder[index]);
     recordCookie(null, null, playOrder[index]);
@@ -579,7 +578,9 @@ export default function Home() {
       setGameRoundStartTimestamp(Date.now());
     }
 
-    createOpponentClickTimeout(playOrder[index]);
+    if (haveInput) {
+      createOpponentClickTimeout(playOrder[index]);
+    }
   }
 
   function nextMusic() {
@@ -604,7 +605,6 @@ export default function Home() {
   }
 
   function previousMusic() {
-    setHaveInput(true);
     // find the index of the currentPlayingId in playOrder
     let index = playOrder.indexOf(currentPlayingId);
     index = (index - 1 + playOrder.length) % playOrder.length;
@@ -1015,14 +1015,6 @@ export default function Home() {
         </FormControl>
       );
     });
-
-    let commentOnStyle = <></>
-    for (let style of cardStyleSet) {
-      console.log(style, cardFilePrefix)
-      if (style[1] === cardFilePrefix) {
-        commentOnStyle = cardStyleSet[2]
-      }
-    }
 
     return (
       <Box overflow="auto" padding={2}>
