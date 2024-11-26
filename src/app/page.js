@@ -42,12 +42,44 @@ const darkTheme = createTheme({
 });
 
 const cardStyleSet = [
-  ["dairi-sd", "./cards/"],
-  ["dairi", "./cards-dairi/"],
-  ["enbu", "./cards-enbu/"],
-  ["enbu-dolls", "./cards-enbu-dolls/"],
-  ["thwiki-sd", "./cards-thwiki/"],
-  ["zun", "./cards-zun/"],
+  ["dairi-sd", "./cards/", 
+    <Typography color="gray">
+      Free super-deformed tachies from dairi Twitter <Link href="https://x.com/dairi155">@dairi155</Link>. 
+      I decided that some
+      characters should look happier than others, and some gloomier.
+    </Typography>
+  ],
+  ["dairi", "./cards-dairi/", 
+    <Typography color="gray">
+      Free super-deformed tachies from dairi Twitter <Link href="https://x.com/dairi155">@dairi155</Link>. Respect to the very diligent illustrator.
+    </Typography>
+  ],
+  ["enbu", "./cards-enbu/", 
+    <Typography color="gray">
+      Free tachies from RPG game <Link hrerf="http://www.fo-lens.net/enbu_ap/">幻想人形演舞-ユメノカケラ-</Link>. 
+      Well, don't blame me if some
+      characters' head seem greater than others'.
+    </Typography>
+  ],
+  ["enbu-dolls", "./cards-enbu-dolls/", 
+    <Typography color="gray">
+      Free tachies from RPG game <Link href="http://www.fo-lens.net/enbu_ap/">幻想人形演舞-ユメノカケラ-</Link>. They were intended for the dolls as
+      a part of the original game. Cute aren't they?
+    </Typography>
+  ],
+  ["thwiki-sd", "./cards-thwiki/", 
+    <Typography color="gray">
+      Art from <Link href="https://thwiki.cc/">thbwiki</Link>. The music here is also linked from their storage so I can host
+      this website without renting a server. 
+    </Typography>
+  ],
+  ["zun", "./cards-zun/", 
+    <Typography color="gray">
+      Well, cheers for those who love ZUN's art. Who else on earth would use these for playing?
+      I don't have the copyright and should not have used
+      these here, but let's pray no one cares.
+    </Typography>
+  ],
 ]
 
 var docCookies = {
@@ -765,10 +797,11 @@ export default function Home() {
           <Button onClick={previousMusic} variant="outlined" width="100" className="chinese">上一曲</Button>
           <Button onClick={() => {
             let audio = audioPlayerRef.current;
-            setHaveInput(true);
             if (audio.paused) {
+              setHaveInput(true);
               audio.play();
             } else {
+              setHaveInput(false);
               audio.pause();
             }
           }} variant="outlined" width="100" className="chinese">播放|暂停</Button>
@@ -983,48 +1016,67 @@ export default function Home() {
       );
     });
 
+    let commentOnStyle = <></>
+    for (let style of cardStyleSet) {
+      console.log(style, cardFilePrefix)
+      if (style[1] === cardFilePrefix) {
+        commentOnStyle = cardStyleSet[2]
+      }
+    }
+
     return (
       <Box overflow="auto" padding={2}>
         <Stack spacing={2}>
         <Typography variant="h6" className="chinese">卡牌风格</Typography>
-          <FormControl>
-            <RadioGroup 
-              row
-              key="cardStyle" 
-              variant="outlined"
-              value={cardFilePrefix} 
-              onChange={(event) => {
-                let newMusicIds = {}
-                for (let key in musicIds) {
-                  newMusicIds[key] = musicIds[key];
+          <Stack spacing={0}>
+            <FormControl>
+              <RadioGroup 
+                row
+                key="cardStyle" 
+                variant="outlined"
+                value={cardFilePrefix} 
+                onChange={(event) => {
+                  let newMusicIds = {}
+                  for (let key in musicIds) {
+                    newMusicIds[key] = musicIds[key];
+                  }
+                  setCardFilePrefix(event.target.value);
+                  docCookies.setItem("cardFilePrefix", event.target.value, Infinity, "/");
+                }}
+              >
+                {
+                  cardStyleSet.map((style, index) => {
+                    return <FormControlLabel 
+                      key={index} 
+                      value={style[1]}
+                      control={<Radio />} 
+                      label={style[0]}
+                      size="small"
+                      sx={{
+                        height: "1.5em",
+                      }}
+                    />
+                  })
                 }
-                setCardFilePrefix(event.target.value);
-                docCookies.setItem("cardFilePrefix", event.target.value, Infinity, "/");
-              }}
-            >
+              </RadioGroup>
+            </FormControl>
+            <Box paddingTop={-2}>
               {
                 cardStyleSet.map((style, index) => {
-                  return <FormControlLabel 
-                    key={index} 
-                    value={style[1]}
-                    control={<Radio />} 
-                    label={style[0]}
-                    size="small"
-                    sx={{
-                      height: "1.5em",
-                    }}
-                  />
+                  if (style[1] === cardFilePrefix) {
+                    return style[2]
+                  }
                 })
               }
-            </RadioGroup>
-          </FormControl>
+            </Box>
+          </Stack>
 
-          <Typography variant="h6" className="chinese">预设快速选择</Typography>
+          <Typography variant="h6" className="chinese">曲目预设选择</Typography>
           <Grid container spacing={2}>
             {presets}
           </Grid>
           {idPresetHelpText}
-          <Typography variant="h6" className="chinese">角色单曲选择</Typography>
+          <Typography variant="h6" className="chinese">单曲选择</Typography>
           {selectors}
         </Stack>
       </Box>
@@ -1472,14 +1524,15 @@ export default function Home() {
         >上一曲</Button>
         <Button disabled={isFinished} onClick={() => {
             let audio = audioPlayerRef.current;
-            setHaveInput(true);
             if (audio.paused) {
+              setHaveInput(true);
               audio.play();
+              createOpponentClickTimeout(currentPlayingId);
+              setGameRoundStartTimestamp(Date.now());
             } else {
+              setHaveInput(false);
               audio.pause();
             }
-            createOpponentClickTimeout(currentPlayingId);
-            setGameRoundStartTimestamp(Date.now());
           }} 
           variant="outlined" className="chinese"
           sx={{width: {sm: "auto", xs: "30%"}}}
