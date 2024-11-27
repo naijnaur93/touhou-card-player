@@ -20,6 +20,7 @@ import CheckBox from '@mui/material/Checkbox';
 import ButtonGroup from '@mui/material/ButtonGroup';
 import Divider from '@mui/material/Divider';
 import Image from 'next/image';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 const musicFilePrefix = "";
 
@@ -294,9 +295,9 @@ export default function Home() {
   const countdownPlayerRef = useRef(null);
   const gameStatsRef = useRef(gameStats);
   const gameLayoutRef = useRef(gameLayout);
-  const gamePlayerStatsRef = useRef(gamePlayerStats);
   const gameOpponentPropertiesRef = useRef(gameOpponentProperties);
   
+  const isSmallScreen = !useMediaQuery("(min-width:600px)");
 
   function finishCurrentRound() {
     if (setGameOpponentClickTimeout !== null) {
@@ -430,7 +431,8 @@ export default function Home() {
   useEffect(() => {
     gameStatsRef.current = gameStats;
     gameLayoutRef.current = gameLayout;
-  }, [gameStats, gameLayout]);
+    gameOpponentPropertiesRef.current = gameOpponentProperties;
+  }, [gameStats, gameLayout, gameOpponentProperties]);
 
 
   useEffect(() => {
@@ -463,12 +465,6 @@ export default function Home() {
   }
 
   function opponentClick(currentPlayingId) {
-    console.log(gameOpponentPropertiesRef.current)
-    console.log(gameOpponentProperties)
-    console.log(gameLayoutRef.current)
-    console.log(gameLayout)
-    console.log(gameStatsRef.current)
-    console.log(gameStats)
     if (setGameOpponentClickTimeout !== null) {
       clearTimeout(gameOpponentClickTimeout);
       setGameOpponentClickTimeout(null);
@@ -481,8 +477,8 @@ export default function Home() {
     // if game is finished return
     if (gameFinished()) {return;}
     let mistakeRandom = Math.random();
-    let mistake = mistakeRandom < gameOpponentProperties.mistakeRate;
-    console.log("mistake random", mistakeRandom, " rate", gameOpponentProperties.mistakeRate);
+    let mistake = mistakeRandom < gameOpponentPropertiesRef.current.mistakeRate;
+    console.log("mistake random", mistakeRandom, " rate", gameOpponentPropertiesRef.current.mistakeRate);
     // console.log("currentPlayingId", currentPlayingId);
     if (!mistake) {
       let found = false;
@@ -1598,7 +1594,7 @@ export default function Home() {
                 }} style={{
                   textTransform: "none"
                 }}>
-                  We need more Alice!
+                  {isSmallScreen ? "More Alice!" : "We need more Alice!"}
                 </Button>
               </Grid>
               <Grid container sm={4} xs={4} alignItems="center" justifyContent="flex-end">
