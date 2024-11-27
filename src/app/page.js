@@ -463,6 +463,12 @@ export default function Home() {
   }
 
   function opponentClick(currentPlayingId) {
+    console.log(gameOpponentPropertiesRef.current)
+    console.log(gameOpponentProperties)
+    console.log(gameLayoutRef.current)
+    console.log(gameLayout)
+    console.log(gameStatsRef.current)
+    console.log(gameStats)
     if (setGameOpponentClickTimeout !== null) {
       clearTimeout(gameOpponentClickTimeout);
       setGameOpponentClickTimeout(null);
@@ -475,8 +481,8 @@ export default function Home() {
     // if game is finished return
     if (gameFinished()) {return;}
     let mistakeRandom = Math.random();
-    let mistake = mistakeRandom < gameOpponentPropertiesRef.current.mistakeRate;
-    console.log("mistake random", mistakeRandom, " rate", gameOpponentPropertiesRef.current.mistakeRate);
+    let mistake = mistakeRandom < gameOpponentProperties.mistakeRate;
+    console.log("mistake random", mistakeRandom, " rate", gameOpponentProperties.mistakeRate);
     // console.log("currentPlayingId", currentPlayingId);
     if (!mistake) {
       let found = false;
@@ -1744,10 +1750,13 @@ export default function Home() {
                   <TextField id="layoutRows" label="犯错概率" variant="outlined" size="small"
                     className="chinese"
                     value={gameOpponentProperties.mistakeRate} 
-                    onChange={(event) => setGameOpponentProperties({
-                      ...gameOpponentProperties, 
-                      "mistakeRate": parseFloat(event.target.value)
-                    })}
+                    onChange={(event) => {
+                      setGameOpponentProperties({
+                        ...gameOpponentProperties, 
+                        "mistakeRate": parseFloat(event.target.value)
+                      });
+                    }
+                  }
                     type="number"
                     sx={{width: {sm: "20%", xs: "45%"}}}
                     inputProps={{min: 0, max: 1, step: 0.05}}
