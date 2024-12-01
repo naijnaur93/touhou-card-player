@@ -827,14 +827,23 @@ export default function Home() {
             setTemporarySkip(newSkip);
           }}
           >
+            
+          <Box sx={{position: "relative", paddingTop: "142.25%", justifyContent: "center", alignItems: "center"}}>
             <img key={"" + index} 
               src={cardFilePrefix + cardName} 
               alt={cardName}
               style={{
-                width: "100%", height: "auto",
+                width: "100%", 
+                height: "auto", 
+                position: "absolute", 
+                left: 0,
+                objectFit: "cover",
+                top: "50%",
+                transform: "translateY(-50%)",
                 filter: temporarySkip[character] ? "grayscale(100%)" : "none",
               }}
             />
+          </Box>
         </Paper>)
         allCardCount -= 1
       })
@@ -1534,14 +1543,20 @@ export default function Home() {
             }
           }}
           >
-            <img key={"" + renderedCards.length} 
-              src={cardFilePrefix + cardName} 
-              alt={cardName}
-              style={{
-                width: "100%", height: "auto",
-                transform: isOpponent ? "rotate(180deg)" : "rotate(0deg)"
-              }}
-            />
+            <Box sx={{position: "relative", paddingTop: "142.25%", justifyContent: "center", alignItems: "center", transform: isOpponent ? "rotate(180deg)" : "rotate(0deg)"}}>
+              <img key={"" + renderedCards.length} 
+                src={cardFilePrefix + cardName} 
+                alt={cardName}
+                style={{
+                  width: "100%", height: "auto",
+                  position: "absolute", 
+                  left: 0,
+                  objectFit: "cover",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                }}
+              />
+            </Box>
         </Paper>);
       })
       if (isOpponent) {
