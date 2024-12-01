@@ -800,6 +800,7 @@ export default function Home() {
     })
     playOrder.forEach((character, index) => {
       if (character == currentPlayingId) {beforeCurrent = false; return;}
+      if (musicIds[character] === -1) {return;}
       if (beforeCurrent) {return;}
       let cards = data[character]["card"];
       if (typeof cards === 'string') {
@@ -827,7 +828,6 @@ export default function Home() {
             setTemporarySkip(newSkip);
           }}
           >
-            
           <Box sx={{position: "relative", paddingTop: "142.25%", justifyContent: "center", alignItems: "center"}}>
             <img key={"" + index} 
               src={cardFilePrefix + cardName} 
@@ -848,6 +848,17 @@ export default function Home() {
         allCardCount -= 1
       })
     })
+
+    const cardAspectRatio = (1000 / 703) * 100 + "%";
+    let dummyElement = <Box key="dummy" sx={{ flex: "0 0 " + "16.7%" }}>
+    <Paper key="dummy" variant="elevation" elevation={0}
+      sx={{ backgroundColor: "transparent", width: "100%", position: "relative", paddingTop: cardAspectRatio, overflow: "hidden",
+      }}>
+      <Box sx={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%"
+      }}>
+      </Box>
+    </Paper>
+  </Box>
     
     return (
       <Box padding={2} align="center">
@@ -934,6 +945,7 @@ export default function Home() {
           }}
           
         >
+          {queued.length == 0 && <Typography className="chinese">(空)</Typography>}
           {queued.length == 0 && dummyElement}
           {queued}
         </Stack>
