@@ -294,6 +294,7 @@ export default function Home() {
     "correctClicks": 0,
   })
   const [gameRoundStartTimestamp, setGameRoundStartTimestamp] = useState(0);
+  const [temporarySkip, setTemporarySkip] = useState({})
 
   const audioPlayerRef = useRef(null);
   const countdownPlayerRef = useRef(null);
@@ -572,11 +573,10 @@ export default function Home() {
       index = 0;
     }
     index = (index + 1) % playOrder.length;
-    while (musicIds[playOrder[index]] === -1) {
+    while (musicIds[playOrder[index]] === -1 || temporarySkip[playOrder[index]]) {
       index = (index + 1) % playOrder.length;
     }
 
-    let previousPlayingId = currentPlayingId;
     setCurrentPlayingId(playOrder[index]);
     recordCookie(null, null, playOrder[index]);
 
@@ -614,7 +614,7 @@ export default function Home() {
     // find the index of the currentPlayingId in playOrder
     let index = playOrder.indexOf(currentPlayingId);
     index = (index - 1 + playOrder.length) % playOrder.length;
-    while (musicIds[playOrder[index]] === -1) {
+    while (musicIds[playOrder[index]] === -1 || temporarySkip[playOrder[index]]) {
       index = (index - 1 + playOrder.length) % playOrder.length;
     }
     setCurrentPlayingId(playOrder[index]);
@@ -728,6 +728,12 @@ export default function Home() {
     // permute the ids
     let permuted = (ordered) ? (ids) : randomlyPermutePlayOrder(ids);
     setPlayOrder(permuted);
+    // set new temporary skip to have all falses
+    let newTemporarySkip = {};
+    Object.entries(data).forEach(([character, value]) => {
+      newTemporarySkip[character] = false;
+    })
+    setTemporarySkip(newTemporarySkip);
     let first = 0;
     while (musicIds[permuted[first]] === -1) {
       first = (first + 1) % permuted.length;
@@ -781,11 +787,64 @@ export default function Home() {
         </Paper>
       );
     }
+
+    let queued = [];
+    let beforeCurrent = true;
+    let allCardCount = 0
+    playOrder.forEach((character, index) => {
+      let cards = data[character]["card"];
+      if (typeof cards === 'string') {
+        cards = [cards];
+      }
+      allCardCount += cards.length
+    })
+    playOrder.forEach((character, index) => {
+      if (character == currentPlayingId) {beforeCurrent = false; return;}
+      if (beforeCurrent) {return;}
+      let cards = data[character]["card"];
+      if (typeof cards === 'string') {
+        cards = [cards];
+      }
+      cards.forEach((cardName, cardId) => {
+        let marginLeft = (queued.length !== 0) ? "-2%" : "0"
+        if (cardId !== 0) {
+          marginLeft = "-10%"
+        }
+        queued.push(<Paper key={"" + index + cardId} variant="elevation" elevation={6}
+          sx={{
+            backgroundColor: temporarySkip[character] ? "lightgray" : "white", 
+            flex: "0 0 16.7%",
+            marginLeft: marginLeft,
+            zIndex: allCardCount,
+            cursor: "pointer",
+            "&:hover": {
+              backgroundColor: temporarySkip[character] ? "#DAEBEB" : "lightcyan", 
+            }
+          }}
+          onClick={() => {
+            let newSkip = {...temporarySkip};
+            newSkip[character] = !newSkip[character];
+            setTemporarySkip(newSkip);
+          }}
+          >
+            <img key={"" + index} 
+              src={cardFilePrefix + cardName} 
+              alt={cardName}
+              style={{
+                width: "100%", height: "auto",
+                filter: temporarySkip[character] ? "grayscale(100%)" : "none",
+              }}
+            />
+        </Paper>)
+        allCardCount -= 1
+      })
+    })
+    
     return (
       <Box padding={2} align="center">
-        <Typography sx={{fontSize: "1.5em"}}>{musicName}</Typography>
-        <Typography sx={{fontSize: "1.2em"}}>{albumName}</Typography>
-        <Typography sx={{fontSize: "1.2em"}}>{character}</Typography>
+        <Typography sx={{whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: "clamp(1em, 1.5em, 3vw)"}}>{musicName}</Typography>
+        <Typography sx={{whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: "clamp(0.8em, 1.2em, 2.4vw)"}}>{albumName}</Typography>
+        <Typography sx={{whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: "clamp(0.8em, 1.2em, 2.4vw)"}}>{character}</Typography>
         <Stack direction="row" spacing={2} padding={2} alignItems="center" justifyContent={"center"}>
           {cardComponents}
         </Stack>
@@ -799,8 +858,8 @@ export default function Home() {
             <source src={musicUrl} type="audio/mpeg" />
           </audio>
         </Box>
-        <Stack direction="row" spacing={2} padding={2} alignItems="center" justifyContent={"center"}>
-          <Button onClick={previousMusic} variant="outlined" width="100" className="chinese">上一曲</Button>
+        <Stack direction="row" spacing={1} padding={1} alignItems="center" justifyContent={"center"}>
+          <Button onClick={previousMusic} variant="outlined" width="100" className="chinese" size="small">上一曲</Button>
           <Button onClick={() => {
             let audio = audioPlayerRef.current;
             if (audio.paused) {
@@ -810,20 +869,20 @@ export default function Home() {
               setHaveInput(false);
               audio.pause();
             }
-          }} variant="outlined" width="100" className="chinese">播放|暂停</Button>
-          <Button onClick={nextMusic} variant="outlined" width="100" className="chinese">下一曲</Button>
+          }} variant="outlined" width="100" className="chinese" size="small">播放|暂停</Button>
+          <Button onClick={nextMusic} variant="outlined" width="100" className="chinese" size="small">下一曲</Button>
         </Stack>
-        <Stack direction="row" spacing={2}  padding={0} alignItems="center" justifyContent={"center"}>
-          <Button onClick={() => {reroll(false);}} variant="outlined" color="warning" width="100" className="chinese">
+        <Stack direction="row" spacing={1}  padding={0} alignItems="center" justifyContent={"center"}>
+          <Button onClick={() => {reroll(false);}} variant="outlined" color="warning" size="small" width="100" className="chinese">
             重新抽选
           </Button>
-          <Button onClick={() => {reroll(true);}} variant="outlined" color="warning" width="100" className="chinese">
+          <Button onClick={() => {reroll(true);}} variant="outlined" color="warning" size="small" width="100" className="chinese">
             顺序排列
           </Button>
         </Stack>
-        <Grid container paddingTop={2} alignItems="center" justifyContent={"center"}>
+        <Grid container paddingTop={1} alignItems="center" justifyContent={"center"}>
           <Grid item xs={4}>
-            <TextField id="playLengthTextField" label="播放时长（0 = 无限）" variant="outlined" size="small"
+            <TextField id="playLengthTextField" label="播放时长（0 = 无限）" variant="standard" size="small"
               className="chinese"
               value={playLength} 
               onChange={(event) => setPlayLength(parseFloat(event.target.value))}
@@ -838,18 +897,37 @@ export default function Home() {
               checked={isRandomStart}
               onChange={(event) => setIsRandomStart(event.target.checked)}
               inputProps={{ 'aria-label': 'controlled' }}
+              size="small"
             />
-            随机位置
+            <Typography variant="button">随机位置</Typography>
           </Grid>
           <Grid item xs={4} className="chinese">
             <CheckBox
               checked={playCountdown}
               onChange={(event) => setPlayCountdown(event.target.checked)}
               inputProps={{ 'aria-label': 'controlled' }}
+              size="small"
             />
-            倒计时
+            <Typography variant="button">倒计时</Typography>
           </Grid>
         </Grid>
+        <Box align="left" paddingTop={1}>
+          <Typography className="chinese">队列中 (单击可选择将其跳过)</Typography>
+        </Box>
+        <Stack key={"queuedStack"} 
+          direction={"row"}
+          width="100%"
+          justifyContent={"flex-start"}
+          sx={{
+            paddingTop: 1,
+            overflowX: "visible",
+            whiteSpace: "nowrap", overflow: "auto", display: "flex", flexWrap: "nowrap"
+          }}
+          
+        >
+          {queued.length == 0 && dummyElement}
+          {queued}
+        </Stack>
       </Box>
     );
   }
@@ -859,31 +937,47 @@ export default function Home() {
     for (let i = 0; i < playOrder.length; i++) {
       let character = playOrder[i];
       let musicId = musicIds[character];
-      if (musicId === -1) {
-        continue;
-      }
-      let musicName = getMusicName(character, musicId);
-      let isPlaying = currentPlayingId === character;
-      items.push(
-        <ListItem key={character} sx={{
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          maxHeight: "1.5em",
-          textOverflow: "ellipsis",
-          backgroundColor: isPlaying ? "darkred" : "inherit",
-          fontWeight: isPlaying ? "bold" : "normal",
-        }}
-          onClick={() => {
-            setCurrentPlayingId(character)
-            recordCookie(null, null, character);
-            // force audio reload
-            audioPlayerRef.current.load();
+      if (musicId !== -1) {
+        let musicName = getMusicName(character, musicId);
+        let isPlaying = currentPlayingId === character;
+        items.push(
+          <ListItem key={character} sx={{
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            maxHeight: "1.5em",
+            textOverflow: "ellipsis",
+            backgroundColor: isPlaying ? "darkred" : "inherit",
+            fontWeight: isPlaying ? "bold" : "normal",
+            cursor: temporarySkip[character] ? "default" : "pointer",
+            color: temporarySkip[character] ? "gray" : "white",
           }}
-          cursor="pointer"
-        >
-          {character} ({musicName})
-        </ListItem>
-      );
+            onClick={temporarySkip[character] ? null : (() => {
+              setCurrentPlayingId(character)
+              recordCookie(null, null, character);
+              // force audio reload
+              audioPlayerRef.current.load();
+            })}
+            cursor="pointer"
+          >
+            {character} ({musicName})
+          </ListItem>
+        );
+      } else {
+        // // do nothing
+        // items.push(
+        //   <ListItem key={character} sx={{
+        //     whiteSpace: "nowrap",
+        //     overflow: "hidden",
+        //     maxHeight: "1.5em",
+        //     textOverflow: "ellipsis",
+        //     backgroundColor: "inherit",
+        //     fontWeight: "normal",
+        //     color: "gray",
+        //   }}>
+        //     {character}
+        //   </ListItem>
+        // );
+      }
     }
     return <List sx={{
       overflow: 'auto',
@@ -931,7 +1025,7 @@ export default function Home() {
                 // if it is not -1, reload the audio
                 if (presetData[currentPlayingId] === -1) {
                   let index = (playOrder.indexOf(currentPlayingId) + 1) % playOrder.length;
-                  while (newMusicIds[playOrder[index]] === -1) {
+                  while (newMusicIds[playOrder[index]] === -1 || temporarySkip[playOrder[index]]) {
                     index = (index + 1) % playOrder.length;
                   }
                   setCurrentPlayingId(playOrder[index]);
@@ -939,7 +1033,7 @@ export default function Home() {
                 }
               }
             }} variant="outlined" width="100" className="chinese">{presetName}</Button>
-            <Button key={presetName + "Help"} 
+            <Button key={presetName + "Help"} variant={idPresetHelp === presetName ? "contained" : "outlined"}
               onClick={() => setIdPresetHelp(idPresetHelp === presetName ? null : presetName)} 
               className="chinese"
             >?</Button>
@@ -1000,7 +1094,7 @@ export default function Home() {
               recordCookie(null, newMusicIds, null);
               if (currentPlayingId === character && newMusicIds[character] === -1) {
                 let index = (playOrder.indexOf(character) + 1) % playOrder.length;
-                while (newMusicIds[playOrder[index]] === -1) {
+                while (newMusicIds[playOrder[index]] === -1 || temporarySkip[playOrder[index]]) {
                   index = (index + 1) % playOrder.length;
                 }
                 setCurrentPlayingId(playOrder[index]);
@@ -1615,7 +1709,7 @@ export default function Home() {
                 <Button variant="text" color="warning" onClick={() => {
                   for (let key in data) {
                     if (key.indexOf("アリス") !== -1) {
-                      if (musicIds[key] !== -1) {
+                      if (musicIds[key] !== -1 && temporarySkip[key] != true) {
                         setCurrentPlayingId(key);
                       }
                       break;
@@ -1957,8 +2051,10 @@ export default function Home() {
         });
         // music ids all set to 0 initially
         let musicIds = {}
+        let temporarySkip = {}
         Object.entries(data).forEach(([key, value]) => {
           musicIds[key] = 0;
+          temporarySkip[key] = false;
         });
         // play order
         let playOrder = []
@@ -2020,6 +2116,7 @@ export default function Home() {
         setMusicIds(musicIds);
         setCurrentPlayingId(currentPlayingId);
         setIsloading(false);
+        setTemporarySkip(temporarySkip);
         // audioPlayerRef.current.volume = 0.5;
         
         fetch('idpresets.json')
