@@ -26,6 +26,8 @@ const musicFilePrefix = "";
 
 import localFont from "next/font/local";
 import { Alert, Collapse, Container, Link } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+
 const inter = localFont({ 
   src: [{
     path: './yumin.ttf',
@@ -182,6 +184,8 @@ export default function Home() {
     "message": "",
   })
   const [cardFilePrefix, setCardFilePrefix] = useState("./cards/");
+
+  const theme = useTheme();
 
   function recordCookie(playOrder, musicIds, currentPlayingId) {
     // create a list of characters for indexing
@@ -890,9 +894,27 @@ export default function Home() {
     let selectors = []
     let presets = []
     Object.entries(idPresets).forEach(([presetName, presetData]) => {
+      let isUsed = 0; // 0 - not used, 1 - partially used, 2 - fully used
+      let usedCount = 0;
+      for (let key in presetData) {
+        if (presetData[key] === musicIds[key]) {
+          usedCount += 1;
+        }
+      }
+      if (usedCount === Object.keys(presetData).length) {
+        isUsed = 2;
+      } else if (usedCount > 0) {
+        isUsed = 1;
+      }
+      let buttonGroupColor = "primary"
+      if (isUsed === 1) {
+        buttonGroupColor = "success"
+      } else if (isUsed === 2) {
+        buttonGroupColor = "warning"
+      }
       presets.push(
         <Box margin={0.5} key={presetName}>
-          <ButtonGroup variant="outlined" key={presetName} aria-label="Basic button group">
+          <ButtonGroup variant="outlined" key={presetName} aria-label="Basic button group" color={buttonGroupColor} size="small">
             <Button key={presetName} onClick={() => {
               let newMusicIds = {}
               for (let key in musicIds) {
@@ -917,7 +939,10 @@ export default function Home() {
                 }
               }
             }} variant="outlined" width="100" className="chinese">{presetName}</Button>
-            <Button key={presetName + "Help"} onClick={() => setIdPresetHelp(idPresetHelp === presetName ? null : presetName)} variant="outlined" width="100" className="chinese">?</Button>
+            <Button key={presetName + "Help"} 
+              onClick={() => setIdPresetHelp(idPresetHelp === presetName ? null : presetName)} 
+              className="chinese"
+            >?</Button>
           </ButtonGroup>
         </Box>
       );
@@ -1066,6 +1091,11 @@ export default function Home() {
           </Stack>
 
           <Typography variant="h6" className="chinese">曲目预设选择</Typography>
+          <Typography color="gray" key="0" className="chinese">
+            <Typography style={{color: theme.palette.warning.light }} display="inline">橙色表示已完全应用。</Typography>
+            <Typography style={{color: theme.palette.success.light }} display="inline">绿色表示部分应用。</Typography>
+            <Typography style={{color: theme.palette.primary.light }} display="inline">蓝色表示未应用。</Typography>
+          </Typography>
           <Grid container spacing={2}>
             {presets}
           </Grid>
