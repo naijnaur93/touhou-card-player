@@ -2068,36 +2068,82 @@ export default function Home() {
         Object.entries(data).forEach(([key, value]) => {
           characters.push(key);
         });
-        let cookieNumCharacters = docCookies.getItem("numCharacters");
-        if (cookieNumCharacters !== null && parseInt(cookieNumCharacters) === characterCount) {
-          // load cookies only if the number of characters is the same
-          let cookiePlayOrder = docCookies.getItem("playOrder");
-          if (cookiePlayOrder !== null) {
-            cookiePlayOrder = cookiePlayOrder.split(",");
-            let newPlayOrder = []
-            cookiePlayOrder.forEach((id) => {
-              newPlayOrder.push(characters[parseInt(id)]);
-            })
-            playOrder = newPlayOrder;
-          }
-          let cookieMusicIds = docCookies.getItem("musicIds");
-          if (cookieMusicIds !== null) {
-            cookieMusicIds = cookieMusicIds.split(",");
-            let newMusicIds = {}
-            cookieMusicIds.forEach((id, index) => {
-              newMusicIds[characters[index]] = parseInt(id);
-            })
-            musicIds = newMusicIds;
-          }
-          let cookieCurrentPlayingId = docCookies.getItem("currentPlayingId");
-          if (cookieCurrentPlayingId !== null) {
-            currentPlayingId = characters[parseInt(cookieCurrentPlayingId)];
-          }
+        let cardFilePrefix = "./cards/";
+
+        function resetCookies() {
+          console.log("Error loading cookies");
+          playOrder = []
+          Object.entries(data).forEach(([key, value]) => {
+            playOrder.push(key);
+          });
+          musicIds = {}
+          Object.entries(data).forEach(([key, value]) => {
+            musicIds[key] = 0;
+          });
+          currentPlayingId = playOrder[0];
+          cardFilePrefix = "./cards/";
+          // clear all cookies
+          docCookies.removeItem("numCharacters");
+          docCookies.removeItem("playOrder");
+          docCookies.removeItem("musicIds");
+          docCookies.removeItem("currentPlayingId");
+          docCookies.removeItem("cardFilePrefix");
         }
-        let cookieCardFilePrefix = docCookies.getItem("cardFilePrefix");
-        if (cookieCardFilePrefix !== null) {
-          setCardFilePrefix(cookieCardFilePrefix);
+
+        try {
+          let cookieNumCharacters = docCookies.getItem("numCharacters");
+          if (cookieNumCharacters !== null && parseInt(cookieNumCharacters) === characterCount) {
+            // load cookies only if the number of characters is the same
+            let cookiePlayOrder = docCookies.getItem("playOrder");
+            if (cookiePlayOrder !== null) {
+              cookiePlayOrder = cookiePlayOrder.split(",");
+              let newPlayOrder = []
+              cookiePlayOrder.forEach((id) => {
+                newPlayOrder.push(characters[parseInt(id)]);
+              })
+              playOrder = newPlayOrder;
+            }
+            let cookieMusicIds = docCookies.getItem("musicIds");
+            if (cookieMusicIds !== null) {
+              cookieMusicIds = cookieMusicIds.split(",");
+              let newMusicIds = {}
+              cookieMusicIds.forEach((id, index) => {
+                let v = parseInt(id);
+                if (Number.isNaN(v) || v < -1 || v >= data[characters[index]]["music"].length) {
+                  throw "Invalid music id";
+                }
+                newMusicIds[characters[index]] = v;
+              })
+              musicIds = newMusicIds;
+            }
+            let cookieCurrentPlayingId = docCookies.getItem("currentPlayingId");
+            if (cookieCurrentPlayingId !== null) {
+              let v = parseInt(cookieCurrentPlayingId);
+              if (v < characters.length) {
+                currentPlayingId = characters[v];
+              }
+            }
+          }
+          let cookieCardFilePrefix = docCookies.getItem("cardFilePrefix");
+          if (cookieCardFilePrefix !== null) {
+            cardFilePrefix = cookieCardFilePrefix;
+            // check cardFilePrefix is in the list of cardFilePrefixes
+            let found = false;
+            for (let i = 0; i < cardStyleSet.length; i++) {
+              if (cardFilePrefix === cardStyleSet[i][1]) {
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              throw "Invalid card file prefix";
+            }
+          }
+        } catch {
+          resetCookies()
         }
+
+        setCardFilePrefix(cardFilePrefix);
 
         // at start all tags are not banned
         let tagsBanned = {}
