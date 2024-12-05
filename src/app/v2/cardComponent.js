@@ -12,6 +12,7 @@ const CardComponent = forwardRef(({
   elevation = 0,
   paperProps = {},
   paperStyles = {},
+  imageStyles = {},
 }, ref) => {
 
   let imageRef = useRef(null);
@@ -63,11 +64,13 @@ const CardComponent = forwardRef(({
             left: 0,
             top: 0,
             objectFit: "cover",
+            ...imageStyles,
           }}
         />
       </Box>
     </Paper>
   );
 })
+CardComponent.displayName = "CardComponent"
 
 export default CardComponent;

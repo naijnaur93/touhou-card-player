@@ -34,7 +34,7 @@ const ProminentCardGroup = forwardRef(({
       align: "center",
       alignItems: "center",
       flexShrink: 0,
-      width: "clamp(0px, 75%, 720px)"
+      width: "clamp(0px, 100%, 720px)",
     }}
   >
     <Stack direction="column" spacing={2} paddingTop={1}>
@@ -59,10 +59,119 @@ const ProminentCardGroup = forwardRef(({
     </Stack>
   </Box>
 })
+ProminentCardGroup.displayName = "ProminentCardGroup"
+
+const QueueCardGroup = forwardRef(({ 
+  data, musicPlayerState, containerWidthPixels,
+  globalSettingState, globalControlMethods,
+}, ref) => {
+  const [hoveredCharacter, setHoveredCharacter] = useState(null);
+  const singleInterval = 0.9;
+  const pluralInterval = 0.4;
+  const cardWidthRatio = 0.167;
+  let cardWidth = containerWidthPixels * cardWidthRatio;
+  if (cardWidth > 150) {cardWidth = 150;}
+  const pluralMarginLeft = cardWidth * (1 - pluralInterval);
+  const singleMarginLeft = cardWidth * (1 - singleInterval);
+  const pastDisplacement = 0.5 * cardWidth;
+  let playOrder = musicPlayerState.playOrder;
+  let currentCharacter = musicPlayerState.currentPlaying;
+  let currentCharacterIndex = playOrder.indexOf(currentCharacter);
+  let queueItems = [];
+  let totalFilenames = [];
+  let displacement = singleMarginLeft;
+  let flag = false;
+  let totalCardCount = 0;
+  for (let i = 0; i < playOrder.length; i++) {
+    let character = playOrder[i];
+    let filenames = data["data"][character]["card"]
+    if (typeof filenames === "string") {
+      filenames = [filenames];
+    }
+    filenames = filenames.map((filename) => {
+      return globalSettingState.relativeRoot + globalSettingState.cardPrefix + filename;
+    });
+    const width = cardWidth * (1 + (filenames.length - 1) * pluralInterval);
+    totalFilenames.push(filenames)
+    if (!flag) {
+      displacement -= width - singleMarginLeft;
+    }
+    if (character === currentCharacter) {
+      flag = true;
+    }
+    totalCardCount += filenames.length;
+  }
+  flag = false;
+  for (let i = 0; i < playOrder.length; i++) {
+    let character = playOrder[i];
+    let filenames = totalFilenames[i];
+    const width = cardWidth * (1 + (filenames.length - 1) * pluralInterval);
+    let cardDisplacement = displacement;
+    if (!flag) cardDisplacement -= pastDisplacement;
+    if (character === currentCharacter) {
+      flag = true;
+    }
+    queueItems.push(<Box 
+      ref={ref}
+      sx={{
+        align: "center",
+        alignItems: "center",
+        flexShrink: 0,
+        width: width + "px",
+        position: "relative",
+        transition: "transform 0.5s",
+        transform: `translateX(${cardDisplacement}px)`,
+        marginLeft: "-" + singleMarginLeft + "px",
+        zIndex: totalCardCount,
+      }}
+      onClick={() => {
+        globalControlMethods.setTemporarySkip(character);
+        console.log("click", character)
+      }}
+      onMouseOver={() => {
+        setHoveredCharacter(character);
+      }}
+    >
+      <Stack direction="row" spacing={0} alignItems="center" justifyContent={"center"}>
+        {filenames.map((filename, index) => {
+          totalCardCount -= 1;
+          return <CardComponent 
+            key={index} src={filename} width={cardWidth + "px"} elevation={6}
+            paperStyles={{
+              marginLeft: index === 0 ? "0%" : ("-" + pluralMarginLeft + "px"),
+              zIndex: filenames.length - 1 - index,
+              backgroundColor: (
+                character == hoveredCharacter ?
+                  (musicPlayerState.temporarySkip[character] ? "#DAEBEB" : "lightcyan") :
+                  (musicPlayerState.temporarySkip[character] ? "lightgray" : "white")
+              )
+            }}
+            imageStyles={{
+              filter: musicPlayerState.temporarySkip[character] ? "grayscale(100%)" : "none"
+            }}
+          ></CardComponent>
+        })}
+      </Stack>
+    </Box>);
+  }
+  return <Box sx={{
+    display: "flex",
+    flexWrap: "nowrap",
+    overflow: "hidden",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+    width: "100%",
+  }} onMouseLeave={() => {
+    setHoveredCharacter(null)
+  }}>
+    {queueItems}
+  </Box>
+})
+QueueCardGroup.displayName = "QueueCardGroup"
 
 export default function MusicPlayerPanel({
   data, musicPlayerState, globalSettingState, onNextClick = () => {}, onPreviousClick = () => {},
-  exposeMethods,
+  exposeMethods, globalControlMethods
 }) {
 
   const theme = useTheme();
@@ -75,26 +184,13 @@ export default function MusicPlayerPanel({
     itemHeight: 0,
   });
   const [paused, setPaused] = useState(true);
+  const [playbackPaused, setPlaybackPaused] = useState(false);
   const [audioState, setAudioState] = useState({
     currentTime: 0,
     duration: 0,
   });
   const audioCountdownRef = useRef(null);
   const isPlayingCountdown = musicPlayerState.playingCountdownTimeout !== null;
-
-  useEffect(() => {
-    if (isPlayingCountdown) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    } else {
-      if (audioRef.current && !paused) {
-        audioRef.current.play().catch((e) => {
-          console.log("Failed to play", e);
-        });
-      }
-    }
-  }, [isPlayingCountdown]);
   
   useEffect(() => {
     const handleResize = () => {
@@ -125,7 +221,7 @@ export default function MusicPlayerPanel({
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [])
+  }, [layoutInfo])
 
   let dataCharacters = data["data"];
 
@@ -177,7 +273,22 @@ export default function MusicPlayerPanel({
         });
       });
     }
-  }, [audioRef.current]);
+  }, [audioRef]);
+
+  useEffect(() => {
+    if (isPlayingCountdown) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    } 
+    // else {
+    //   if (audioRef.current && !paused) {
+    //     audioRef.current.play().catch((e) => {
+    //       console.log("Failed to play", e);
+    //     });
+    //   }
+    // }
+  }, [isPlayingCountdown, audioRef]);
 
   let switchSongButtonSize = layoutInfo.containerWidth * 0.125;
   let switchSongButtonTop = layoutInfo.containerHeight * 0.5 - switchSongButtonSize / 2;
@@ -194,27 +305,36 @@ export default function MusicPlayerPanel({
     return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
   }
 
-  const exposedMethods = {
-    pause: () => {
-      setPaused(true);
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    },
-    playCountdown: () => {
-      if (audioCountdownRef.current) {
-        audioCountdownRef.current.play().catch((e) => {
-          console.log("Failed to play", e);
-        });
-      }
-    }
-  }
   
   useEffect(() => {
+    const exposedMethods = {
+      pause: () => {
+        setPaused(true);
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+      },
+      playCountdown: () => {
+        if (audioCountdownRef.current) {
+          audioCountdownRef.current.play().catch((e) => {
+            console.log("Failed to play", e);
+          });
+        }
+      },
+      playbackPause: () => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          setPlaybackPaused(true);
+        }
+      },
+      setPlaybackPaused: (v) => {
+        setPlaybackPaused(v);
+      }
+    }
     if (exposeMethods) {
       exposeMethods.current = exposedMethods;
     }
-  }, [exposeMethods]);
+  }, [exposeMethods, audioRef]);
 
   return <Stack spacing={1} align="center" alignItems="center">
     <Box width="100%" align="center" alignItems="center">
@@ -223,7 +343,7 @@ export default function MusicPlayerPanel({
         flexWrap: "nowrap",
       }} ref={prominentCardGroupContainerRef}
       >
-        <Box sx={{
+        {/* <Box sx={{
           width: 0,
           height: 0,
           position: "relative",
@@ -257,7 +377,7 @@ export default function MusicPlayerPanel({
               fontSize: layoutInfo.containerHeight * 0.2,
             }}></RightIcon>
           </IconButton>
-        </Box>
+        </Box> */}
         {playOrder.map((character, index) => {
           return <TransitionTab key={index} index={index} value={currentIndexInPlayOrder}>
             <ProminentCardGroup 
@@ -295,37 +415,50 @@ export default function MusicPlayerPanel({
         {toMinuteSeconds(audioState.duration)}
       </Typography>
     </Stack>
-    <IconButton disabled={isPlayingCountdown} onClick={() => {
-      setPaused(!paused);  
-      if (audioRef.current) {
-        if (paused) {
-          audioRef.current.play().catch((e) => {
-            console.log("Failed to play", e);
-          });
-        } else {
-          audioRef.current.pause();
+    <Stack direction="row" spacing={2} alignItems="center" justifyContent={"center"}> 
+      <IconButton onClick={onPreviousClick} variant="outlined" color="primary" disabled={isPlayingCountdown} size="large">
+        <LeftIcon fontSize="large"></LeftIcon>
+      </IconButton>
+      <IconButton disabled={isPlayingCountdown} onClick={() => {
+        if (!playbackPaused) setPaused(!paused);
+        setPlaybackPaused(false);
+        if (audioRef.current) {
+          if (paused || playbackPaused) {
+            audioRef.current.play().catch((e) => {
+              console.log("Failed to play", e);
+            });
+          } else {
+            audioRef.current.pause();
+          }
         }
-      }
-    }} variant="outlined" color="primary" size="large"
-      // sx={{
-      //   height: switchSongButtonSize,
-      //   width: switchSongButtonSize,
-      //   minWidth: switchSongButtonSize,
-      // }}
-    >
-      {paused ? <PlayIcon
-          fontSize="large"
-          // sx={{
-          //   fontSize: layoutInfo.containerHeight * 0.2,
-          // }}
-        ></PlayIcon> : <PauseIcon
-          fontSize="large"
-        ></PauseIcon>
-      }
-    </IconButton>
+      }} variant="outlined" color="primary" size="large"
+      >
+        {(paused || playbackPaused) ? <PlayIcon
+            fontSize="large"
+          ></PlayIcon> : <PauseIcon
+            fontSize="large"
+          ></PauseIcon>
+        }
+      </IconButton>
+      <IconButton onClick={onNextClick} variant="outlined" color="primary" disabled={isPlayingCountdown} size="large">
+        <RightIcon fontSize="large"></RightIcon>
+      </IconButton>
+    </Stack>
     
     {audioPlayer}
     <audio ref={audioCountdownRef} src="../Bell3.mp3"></audio>
+      
+    <Box align="left" width="100%" >
+      <Typography className="chinese">队列中 (单击可选择将其跳过)</Typography>
+    </Box>
+    <QueueCardGroup 
+      data={data}
+      globalSettingState={globalSettingState} 
+      musicPlayerState={musicPlayerState}
+      containerWidthPixels={layoutInfo.containerWidth}
+      globalControlMethods={globalControlMethods}
+    />
+
   </Stack>
 
 }

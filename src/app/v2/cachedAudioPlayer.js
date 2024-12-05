@@ -65,10 +65,10 @@ const CachedAudioPlayer = ({ src, onFetched, onLoaded }) => {
         prepareAudio(src);
       }
     }
-  }, [src]);
+  }, [src, currentSrc, onFetched]);
 
   return [
-    <div>
+    <div key={0}>
       <audio
         ref={audioRef}
         onLoadedData={() => {

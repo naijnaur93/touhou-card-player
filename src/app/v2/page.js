@@ -1,6 +1,6 @@
 'use client';
 
-import { List, ListItem, Typography, Tabs, Tab, Paper, Box, Stack } from "@mui/material";
+import { List, ListItem, Typography, Tabs, Tab, Paper, Box, Stack, TextField } from "@mui/material";
 import CardComponent from "./cardComponent"
 import { useState, useRef, useEffect, useTransition } from "react";
 import Button from '@mui/material/Button';
@@ -70,6 +70,8 @@ function loadCookies(data, getDefaultValue = false) {
   let musicPlayerState = {
     "playOrder": characters,
     "currentPlaying": characters[0],
+    "playingCountdownTimeout": null,
+    "playbackTimeout": null,
   }
   {
     let musicIds = {};
@@ -138,12 +140,14 @@ export default function Page() {
     "musicIds": {},
     "temporarySkip": {},
     "playingCountdownTimeout": null,
+    "playbackTimeout": null,
   });
   const [globalSettingState, setGlobalSettingState] = useState({
     "cardPrefix": "./cards/",
     "relativeRoot": relativeRoot,
     "randomPlayPosition": false,
     "countdown": false,
+    "playbackTime": 0,
   });
   const [tabValue, setTabValue] = useState(0);
 
@@ -167,18 +171,6 @@ export default function Page() {
     setTabValue(newValue);
   };
 
-  const onPreviousMusicClick = () => {
-    let playOrder = musicPlayerState.playOrder;
-    let currentPlayingIndex = playOrder.indexOf(musicPlayerState.currentPlaying);
-    let previousIndex = (currentPlayingIndex - 1 + playOrder.length) % playOrder.length;
-    let previousCharacter = playOrder[previousIndex];
-    setMusicPlayerState({
-      ...musicPlayerState,
-      currentPlaying: previousCharacter
-    });
-    docCookies.setItem("currentPlaying", previousIndex);
-  }
-
   const characterInPlaylist = (musicPlayerState, character, allowTemporarySkip = false) => {
     if (musicPlayerState.musicIds[character] === -1) {
       return false;
@@ -197,10 +189,10 @@ export default function Page() {
       let nextIndex = (currentIndex + i) % playOrder.length;
       let nextCharacter = playOrder[nextIndex];
       if (characterInPlaylist(musicPlayerState, nextCharacter)) {
-        return nextCharacter;
+        return [nextIndex, nextCharacter];
       }
     }
-    return null;
+    return [null, null];
   }
   const findPreviousCharacterInPlaylist = (musicPlayerState, character) => {
     let playOrder = musicPlayerState.playOrder;
@@ -209,7 +201,7 @@ export default function Page() {
       let previousIndex = (currentIndex - i + playOrder.length) % playOrder.length;
       let previousCharacter = playOrder[previousIndex];
       if (characterInPlaylist(musicPlayerState, previousCharacter)) {
-        return previousCharacter;
+        return [previousIndex, previousCharacter];
       }
     }
     return null;
@@ -226,14 +218,21 @@ export default function Page() {
   }
 
   const playNextMusic = (additionalToSet = {}) =>{
-    let playOrder = musicPlayerState.playOrder;
-    let currentPlayingIndex = playOrder.indexOf(musicPlayerState.currentPlaying);
-    let nextIndex = (currentPlayingIndex + 1) % playOrder.length;
-    let nextCharacter = playOrder[nextIndex];
+    let [nextIndex, nextCharacter] = findNextCharacterInPlaylist(musicPlayerState, musicPlayerState.currentPlaying)
+    let playbackTimeout = null;
+    if (globalSettingState.playbackTime > 0) {
+      musicPlayerPanelExposedMethodsRef.current.setPlaybackPaused(false);
+      playbackTimeout = setTimeout(() => {
+        if (musicPlayerPanelExposedMethodsRef.current) {
+          musicPlayerPanelExposedMethodsRef.current.playbackPause();
+        }
+      }, globalSettingState.playbackTime * 1000);
+    }
     setMusicPlayerState({
       ...musicPlayerState,
       ...additionalToSet,
-      currentPlaying: nextCharacter
+      currentPlaying: nextCharacter,
+      playbackTimeout: playbackTimeout
     });
     docCookies.setItem("currentPlaying", nextIndex);
   }
@@ -255,6 +254,15 @@ export default function Page() {
         }, 3000)
       })
     }
+  }
+  
+  const onPreviousMusicClick = () => {
+    let [previousIndex, previousCharacter] = findPreviousCharacterInPlaylist(musicPlayerState, musicPlayerState.currentPlaying)
+    setMusicPlayerState({
+      ...musicPlayerState,
+      currentPlaying: previousCharacter
+    });
+    docCookies.setItem("currentPlaying", previousIndex);
   }
 
   const reroll = (random = false) => {
@@ -288,10 +296,25 @@ export default function Page() {
     let currentPlaying = findFirstCharacterInPlaylist(newMusicPlayerState);
     newMusicPlayerState.currentPlaying = currentPlaying;
     setMusicPlayerState(newMusicPlayerState);
+    
+    // set cookies
+    let playOrderString = playOrder.map((character) => {
+      return characters.indexOf(character);
+    }).join(",");
+    docCookies.setItem("playOrder", playOrderString);
+    docCookies.setItem("currentPlaying", characters.indexOf(currentPlaying));
   }
 
   const globalControlMethods = {
     "reroll": reroll,
+    "setTemporarySkip": (character) => {
+      let newTemporarySkip = {...musicPlayerState.temporarySkip}
+      newTemporarySkip[character] = !newTemporarySkip[character];
+      setMusicPlayerState({
+        ...musicPlayerState,
+        temporarySkip: newTemporarySkip
+      })
+    }
   }
 
   return <ThemeProvider theme={darkTheme}>
@@ -332,6 +355,9 @@ export default function Page() {
                 <Stack direction="row" spacing={1}>
                   <Button className="chinese" variant="outlined" color="warning" onClick={() => {reroll(true);}}>重新抽选</Button>
                   <Button className="chinese" variant="outlined" color="warning" onClick={() => {reroll(false);}}>顺序排列</Button>
+
+                </Stack>
+                <Stack direction="row" spacing={1}>
                   <Button className="chinese" variant={globalSettingState.randomPlayPosition ? "contained" : "outlined"} color="primary" onClick={() => {
                     setGlobalSettingState({
                       ...globalSettingState,
@@ -345,6 +371,20 @@ export default function Page() {
                     });
                   }}>倒计时</Button>
                 </Stack>
+                <TextField id="playLengthTextField" label="播放时长（0 = 无限）" variant="standard"
+                  className="chinese"
+                  value={globalSettingState.playbackTime} 
+                  onChange={(event) => setGlobalSettingState({
+                    ...globalSettingState,
+                    playbackTime: parseFloat(event.target.value)
+                  })}
+                  type="number"
+                  sx={{
+                    width: "clamp(150px, 30%, 240px)"
+                  }}
+                  // min is 0, max is 180, step is 0.25
+                  inputProps={{min: 0, max: 180, step: 0.25}}
+                />
               </Stack>
             </BoxPaper>
           </TransitionTab>
@@ -361,64 +401,4 @@ export default function Page() {
     </Box>}
   </ThemeProvider>
 
-  let itemRefs = useRef([])
-  let a = []
-  for (let i = 0; i < 50; i++) {
-    a.push(i)
-  }
-  let items = a.map((i) => {
-    return <ListItem key={i} ref={el => itemRefs.current[i] = el}> 
-      <Typography sx={{color: i === highlight ? "red" : "white"}}>
-        Some text {i}
-      </Typography>
-    </ListItem>
-  })
-  let box = <Box sx={{
-    border: "1px solid white",
-    width: "1000px",
-    height: "800px",
-    overflow: "auto",
-  }}>
-    <List>
-      {items}
-    </List>
-  </Box>
-  return <div>
-    Hello there
-    
-    <Stack direction="row" onMouseOver={() => {
-        setIsHovering(true);
-      }}
-      onMouseLeave={() => {
-        setIsHovering(false);
-      }}
-      >
-        <CardComponent src="../cards/咲夜.png" width="20%" elevation="6"
-          paperStyles={{
-            zIndex: 1, marginLeft: "0%"
-          }}
-        ></CardComponent>
-        <CardComponent src="../cards/tall.png" width="20%" elevation="6"
-          paperStyles={{
-            zIndex: 2, marginLeft: isHovering ? "0%" : "-7%", transition: "margin-left 1s ease-out"
-          }}
-        ></CardComponent>
-        <CardComponent src="../cards/wide.png" width="20%" elevation="6"
-          paperStyles={{
-            zIndex: 3, marginLeft: isHovering ? "0%" : "-7%", transition: "margin-left 1s ease-out"
-          }}
-        ></CardComponent>
-      </Stack>
-    <Stack direction="row">
-      <CardComponent src="../cards/咲夜.png" width="20%"></CardComponent>
-    </Stack>
-    <Button onClick={() => {
-      let random = Math.floor(Math.random() * 50)
-      setHighlight(random)
-      itemRefs.current[random].scrollIntoView({behavior: "smooth"})
-    }}>
-      Click me
-    </Button>
-    {box}
-  </div>
 }
