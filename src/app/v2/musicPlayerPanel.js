@@ -30,7 +30,7 @@ const ProminentCardGroup = forwardRef(({
     return optionState.relativeRoot + optionState.cardPrefix + filename;
   });
   const [musicName, albumName] = utils.getMusicName(musicFilename);
-  return <Box 
+  return <Box
     ref={ref}
     sx={{
       align: "center",
@@ -90,6 +90,7 @@ const QueueCardGroup = forwardRef(({
   const dy = cardWidth / aspectRatio * 0.05;
   for (let i = 0; i < playOrder.length; i++) {
     let character = playOrder[i];
+    if (musicPlayerState.musicIds[character] === -1) continue;
     let filenames = data["data"][character]["card"]
     if (typeof filenames === "string") {
       filenames = [filenames];
@@ -108,9 +109,11 @@ const QueueCardGroup = forwardRef(({
     totalCardCount += filenames.length;
   }
   flag = false;
+  let counter = 0;
   for (let i = 0; i < playOrder.length; i++) {
     let character = playOrder[i];
-    let filenames = totalFilenames[i];
+    if (musicPlayerState.musicIds[character] === -1) continue;
+    let filenames = totalFilenames[counter]; counter++;
     const width = cardWidth * (1 + (filenames.length - 1) * pluralInterval);
     let cardDisplacement = displacement;
     if (!flag) cardDisplacement -= pastDisplacement;
@@ -256,18 +259,20 @@ export default function MusicPlayerPanel({
     if (typeof musicList === "string") {
       musicList = [musicList];
     }
-    return musicList[0];
+    let id = musicPlayerState.musicIds[character];
+    if (id >= 0) {
+      return musicList[id];
+    } else {
+      throw ("Trying to find -1 music of " + character)
+    }
   }
 
   let currentCharacter = musicPlayerState.currentPlaying;
   let currentSource = data["sources"][getMusicNameOfCharacter(currentCharacter)];
   let playOrder = musicPlayerState.playOrder;
   let currentIndexInPlayOrder = playOrder.indexOf(currentCharacter);
-  let nextIndexInPlayOrder = (currentIndexInPlayOrder + 1) % playOrder.length;
-  let nextCharacter = playOrder[nextIndexInPlayOrder];
+  let [_, nextCharacter] = globalMethods.findNextCharacterInPlaylist(musicPlayerState, currentCharacter);
   let nextSource = data["sources"][getMusicNameOfCharacter(nextCharacter)];
-  let previousIndexInPlayOrder = (currentIndexInPlayOrder - 1 + playOrder.length) % playOrder.length;
-  let previousCharacter = playOrder[previousIndexInPlayOrder];
 
   let [audioPlayer, prepareAudio] = CachedAudioPlayer({ src: currentSource, onFetched: (src) => {
     if (src === currentSource) {
@@ -315,6 +320,32 @@ export default function MusicPlayerPanel({
   let prevSongButtonLeft = layoutInfo.containerWidth / 2 - switchSongButtonXDisplacement - switchSongButtonSize;
   let nextSongButtonLeft = layoutInfo.containerWidth / 2 + switchSongButtonXDisplacement;
 
+  let prominents = [];
+  let counter = 0;
+  let value = 0;
+  playOrder.forEach((character, index) => {
+    if (musicPlayerState.musicIds[character] === -1) return;
+    if (character === currentCharacter) {
+      value = counter;
+    }
+    counter++;
+  })
+  
+  playOrder.forEach((character, index) => {
+    if (musicPlayerState.musicIds[character] === -1) return;
+    prominents.push(<TransitionTab key={character} index={counter} value={value}>
+      <ProminentCardGroup 
+        key={character}
+        data={data} character={character} 
+        globalState={globalState}
+        musicFilename={utils.getMusicFilename(data, character, musicPlayerState)}
+        isFocused={index === currentIndexInPlayOrder}
+        ref={counter === 0 ? prominentCardGroupFirstItemRef : null}
+      />
+    </TransitionTab>)
+    counter++;
+  })
+
   return <Stack spacing={1} align="center" alignItems="center">
     <Box width="100%" align="center" alignItems="center">
       <Box sx={{
@@ -357,17 +388,7 @@ export default function MusicPlayerPanel({
             }}></RightIcon>
           </IconButton>
         </Box> */}
-        {playOrder.map((character, index) => {
-          return <TransitionTab key={index} index={index} value={currentIndexInPlayOrder}>
-            <ProminentCardGroup 
-              data={data} character={character} 
-              globalState={globalState}
-              musicFilename={utils.getMusicFilename(data, character, musicPlayerState)}
-              isFocused={index === currentIndexInPlayOrder}
-              ref={index === 0 ? prominentCardGroupFirstItemRef : null}
-            />
-          </TransitionTab>
-        })}
+        {prominents}
       </Box>
     </Box>
     <PlaySlider 

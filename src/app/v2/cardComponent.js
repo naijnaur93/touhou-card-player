@@ -5,7 +5,7 @@ import Paper from '@mui/material/Paper';
 import { useRef, useEffect, forwardRef } from "react";
 
 const CardComponent = forwardRef(({
-  key, src, 
+  src, 
   width = "10%",
   alt = "cardComponent",
   aspectRatio = 703/1000,
@@ -35,7 +35,7 @@ const CardComponent = forwardRef(({
   })
 
   return (
-    <Paper key={key}
+    <Paper
       style={{
         backgroundColor: "white",
         width: width,
@@ -53,7 +53,7 @@ const CardComponent = forwardRef(({
         justifyContent: "center",
         alignItems: "center",
       }}>
-        <img key={key} 
+        <img
           src={src} 
           alt={alt}
           ref={imageRef}

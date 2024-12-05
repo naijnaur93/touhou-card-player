@@ -14,6 +14,7 @@ import TransitionTab from "./transitionTab";
 import { getMusicFilename, getMusicName } from "./utils";
 import PlayList from "./playList";
 import { PlaySlider, PlayControls } from "./playControls";
+import MusicIdSelectPanel from "./musicIdSelectPanel";
 
 const relativeRoot = "./../"
 const constrainedWidth = {
@@ -125,6 +126,30 @@ function loadCookies(data, getDefaultValue = false) {
     }
   }
 
+  {
+    try {
+      let cookieMusicIds = docCookies.getItem("musicIds");
+      if (cookieMusicIds !== null) {
+        cookieMusicIds = cookieMusicIds.split(",");
+        let newMusicIds = {}
+        cookieMusicIds.forEach((id, index) => {
+          let v = parseInt(id);
+          if (Number.isNaN(v) || v < -1 || v >= data.data[characters[index]]["music"].length) {
+            throw "Invalid music id";
+          }
+          newMusicIds[characters[index]] = v;
+        })
+        if (newMusicIds[musicPlayerState.currentPlaying] === -1) {
+          newMusicIds[musicPlayerState.currentPlaying] = 0;
+        }
+        musicPlayerState["musicIds"] = newMusicIds;
+      }
+    } catch (e) {
+      console.error("Error loading musicIds from cookies", e);
+      docCookies.removeItem("musicIds");
+    }
+  }
+
   return musicPlayerState;
 
 }
@@ -174,6 +199,41 @@ export default function Page() {
     fetch('data.json')
       .then(response => response.json())
       .then(data => {
+
+        let idPresets = {};
+        let characters = Object.keys(data.data);
+        let defaultPreset = {}
+        characters.forEach((key) => {
+          defaultPreset[key] = 0;
+        })
+        idPresets["默认"] = defaultPreset;
+
+        Object.entries(data.idpresets).forEach(([presetName, preset]) => {
+          idPresets[presetName] = preset;
+        })
+
+        let tags = []
+        Object.entries(data.data).forEach(([key, value]) => {
+          value.tags.forEach((tag) => {
+            if (!tags.includes(tag)) {
+              tags.push(tag);
+            }
+          })
+        });
+
+        tags.forEach((tagName) => {
+          let preset = {}
+          Object.entries(data.data).forEach(([key, value]) => {
+            let characterTags = value["tags"];
+            if (characterTags.includes(tagName)) {
+              preset[key] = -1;
+            }
+          })
+          idPresets["屏蔽" + tagName] = preset;
+        })
+
+        data.idpresets = idPresets;
+
         setData(data);
 
         let loadedCookies = loadCookies(data);
@@ -253,7 +313,7 @@ export default function Page() {
     }
   }
 
-  const playMusicOfCharacter = (character, additionalToSet = {}) => {
+  const playMusicOfCharacter = (character, additionalPlaybackState = {}, additionalMusicPlayerState = {}) => {
     let playbackTimeout = null;
     if (optionState.playbackTime > 0) {
       playbackTimeout = setTimeout(() => {
@@ -262,12 +322,13 @@ export default function Page() {
     }
     setPlaybackState({
       ...playbackState,
-      ...additionalToSet,
+      ...additionalPlaybackState,
       playbackPaused: false,
       playbackTimeout: playbackTimeout
     })
     setMusicPlayerState({
       ...musicPlayerState,
+      ...additionalMusicPlayerState,
       currentPlaying: character,
     });
     docCookies.setItem("currentPlaying", Object.keys(data.data).indexOf(character));
@@ -353,6 +414,8 @@ export default function Page() {
     "getMusicName": getMusicName,
     "getMusicFilename": getMusicFilename,
     "playMusicOfCharacter": playMusicOfCharacter,
+    "characterInPlaylist": characterInPlaylist,
+    "findNextCharacterInPlaylist": findNextCharacterInPlaylist,
   }
 
   const onPauseMusicClick = () => {
@@ -384,10 +447,10 @@ export default function Page() {
       >
         Hello ther
 
-        <Tabs value={tabValue} onChange={handleTabsChange}>
-          <Tab label="Music Player" />
-          <Tab label="Music List" />
-          <Tab label="Tab 3" />
+        <Tabs value={tabValue} onChange={handleTabsChange} className="chinese">
+          <Tab label="卡牌播放器" />
+          <Tab label="列表播放器" />
+          <Tab label="曲目与卡片设定" />
         </Tabs>
 
         <Box sx={{
@@ -465,7 +528,9 @@ export default function Page() {
             ></PlayList>
           </BoxPaper></TransitionTab>
           <TransitionTab index={2} value={tabValue}><BoxPaper>
-            Hello there 3
+            <MusicIdSelectPanel
+              data={data} globalState={globalState} globalMethods={globalMethods}
+            ></MusicIdSelectPanel>
           </BoxPaper></TransitionTab>
         </Box>
 
