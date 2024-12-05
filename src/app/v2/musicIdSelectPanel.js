@@ -215,14 +215,14 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
           <Box paddingTop={1} /><Box width="100%" paddingLeft={"0.5em"}>
             <Stack>
               {Object.entries(pairs).map(([character, musicId], index) => {
-                return <Box sx={{
-                  overflow: "hidden", whiteSpace: "nowrap",
+                return <Box key={index} sx={{
+                  // overflow: "hidden", whiteSpace: "nowrap",
                   alignItems: "center", display: "flex"
                 }}>
                   {fulfilled[index] && <CheckIcon fontSize="small" color="warning"/>}
                   {!fulfilled[index] && <CrossIcon fontSize="small" color="primary"/>}
                   <Typography sx={{
-                    overflow: "hidden", whiteSpace: "nowrap",
+                    // overflow: "hidden", whiteSpace: "nowrap",
                     alignItems: "center", paddingLeft: "0.2em",
                   }} color={fulfilled[index] ? "#ffa726" : "primary"}>
                     {character} ⇒ {getMusicNameWithId(character, musicId)}
@@ -327,12 +327,6 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
                     control={<Radio />} 
                     label={musicName}
                     size="small"
-                    sx={{
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      height: "1.5em",
-                    }}
                   />
                 );
               })}
@@ -342,12 +336,6 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
                 control={<Radio />} 
                 label="移除"
                 size="small"
-                sx={{
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  height: "1.5em",
-                }}
               />
             </RadioGroup></Box>
           </Collapse>

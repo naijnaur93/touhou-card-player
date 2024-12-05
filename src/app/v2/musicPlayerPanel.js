@@ -304,7 +304,7 @@ export default function MusicPlayerPanel({
         });
       });
     }
-  }, [audioRef]);
+  }, [audioRef, setAudioState]);
 
   useEffect(() => {
     if (isPlayingCountdown) {
