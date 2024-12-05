@@ -2067,6 +2067,7 @@ export default function Home() {
       .then(data => {
         setData(data["data"]);
         setMusicSources(data["sources"]);
+        let dataIdPresets = data["idpresets"]
         data = data["data"];
         if (!isLoading) return;
         // get the length of the dictionary
@@ -2191,38 +2192,34 @@ export default function Home() {
         setIsloading(false);
         setTemporarySkip(temporarySkip);
         // audioPlayerRef.current.volume = 0.5;
-        
-        fetch('idpresets.json')
-        .then(response => response.json())
-        .then(fetchedData => {
-          let defaultPreset = {}
-          Object.entries(musicIds).forEach(([key, value]) => {
-            defaultPreset[key] = 0;
-          })
-          let presetsData = {}
-          presetsData["默认"] = defaultPreset;
 
-          Object.entries(fetchedData).forEach(([key, value]) => {
-            presetsData[key] = value;
-          })
-
-          Object.entries(tagsBanned).forEach(([tagName, value]) => {
-            let preset = {}
-            Object.entries(data).forEach(([key, value]) => {
-              let tags = value["tags"];
-              // check if any tag in banned tags. if contain, skip
-              for (let i = 0; i < tags.length; i++) {
-                if (tags[i] === tagName) {
-                  preset[key] = -1;
-                  break;
-                }
-              }
-            })
-            presetsData["屏蔽" + tagName] = preset;
-          })
-
-          setIdPresets(presetsData); 
+        let defaultPreset = {}
+        Object.entries(musicIds).forEach(([key, value]) => {
+          defaultPreset[key] = 0;
         })
+        let presetsData = {}
+        presetsData["默认"] = defaultPreset;
+
+        Object.entries(dataIdPresets).forEach(([key, value]) => {
+          presetsData[key] = value;
+        })
+
+        Object.entries(tagsBanned).forEach(([tagName, value]) => {
+          let preset = {}
+          Object.entries(data).forEach(([key, value]) => {
+            let tags = value["tags"];
+            // check if any tag in banned tags. if contain, skip
+            for (let i = 0; i < tags.length; i++) {
+              if (tags[i] === tagName) {
+                preset[key] = -1;
+                break;
+              }
+            }
+          })
+          presetsData["屏蔽" + tagName] = preset;
+        })
+
+        setIdPresets(presetsData); 
 
       })
       .catch(error => console.error('Error:', error));

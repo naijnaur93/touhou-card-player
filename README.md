@@ -3,7 +3,7 @@ Well, this one does as the name says, deployed by at [Github Pages](https://ligh
 
 I am a great fan of Alice Margatroid so I have a button placed at the page top which takes you to Alice's music!
 
-Example *how-to-play* video placed at [Bilibili](https://www.bilibili.com/video/BV1JVzEYsEzF).
+Example *how-to-play* video uploaded at [Bilibili](https://www.bilibili.com/video/BV1JVzEYsEzF).
 
 ## For development
 
