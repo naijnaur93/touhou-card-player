@@ -1,29 +1,25 @@
 import { useState, useRef, useEffect } from "react";
 
-// onFetched(src, audioRef) is called when the audio is fetched from remote
-// onLoaded(src, audioRef) is called when the audio is loaded into the audio element
-const CachedAudioPlayer = ({ src, onFetched, onLoaded }) => {
+// onFetched(src) is called when the audio is fetched from remote
+// onLoaded() is called when the audio is loaded into the audio element
+const CachedAudioPlayer = ({ src, onFetched, onLoaded, globalRefs }) => {
 
   const prepared = useRef({})
-  const audioRef = useRef(null);
   const [currentSrc, setCurrentSrc] = useState("");
   const currentSrcRef = useRef(currentSrc);
+  let audioRef = globalRefs.audioRef;
 
   useEffect(() => {
     currentSrcRef.current = currentSrc;
   }, [currentSrc]);
 
   function prepareAudio(src) {
-    // console.log("calling prepareAudio", src);
-    // console.log("current prepared", prepared.current);
     if (prepared.current[src]) {
-    //   console.log("already prepared", src);
       return;
     }
     prepared.current[src] = "fetching";
     fetch(src, { cache: "force-cache" }).then(async response => {
       if (!response.ok) {
-        console.log("Failed to fetch", src);
         prepared.current[src] = null;
         return;
       }
@@ -49,9 +45,8 @@ const CachedAudioPlayer = ({ src, onFetched, onLoaded }) => {
       prepared.current[src] = new Blob([concatenatedData], { type: "audio/mpeg" });
       if (currentSrcRef.current === src) {
         audioRef.current.src = URL.createObjectURL(prepared.current[src]);
-        onFetched(src, audioRef);
+        onFetched(src);
       }
-      // console.log("prepared dict", prepared.current);
     })
   }
 
@@ -60,7 +55,7 @@ const CachedAudioPlayer = ({ src, onFetched, onLoaded }) => {
       setCurrentSrc(src);
       if (prepared.current[src] && prepared.current[src] !== "fetching") {
         audioRef.current.src = URL.createObjectURL(prepared.current[src]);
-        onFetched(src, audioRef);
+        onFetched(src);
       } else {
         prepareAudio(src);
       }
@@ -72,10 +67,10 @@ const CachedAudioPlayer = ({ src, onFetched, onLoaded }) => {
       <audio
         ref={audioRef}
         onLoadedData={() => {
-          onLoaded(audioRef);
+          onLoaded();
         }}
       />
-    </div>, prepareAudio, audioRef
+    </div>, prepareAudio
   ]
 };
 

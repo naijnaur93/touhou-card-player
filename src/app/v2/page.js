@@ -11,6 +11,9 @@ import docCookies from "./docCookies";
 import MusicPlayerPanel from "./musicPlayerPanel";
 import { keyframes } from "@mui/material/styles";
 import TransitionTab from "./transitionTab";
+import { getMusicFilename, getMusicName } from "./utils";
+import PlayList from "./playList";
+import { PlaySlider, PlayControls } from "./playControls";
 
 const relativeRoot = "./../"
 const constrainedWidth = {
@@ -51,12 +54,12 @@ const darkTheme = createTheme({
   }
 });
 
-const BoxPaper = ({ children }) => {
+const BoxPaper = ({ children, padding = 1}) => {
   return <Box sx={{width: "100%"}} padding={1}>
     <Paper variant="outlined" sx={{
       overflow: "hidden",
     }}>
-      <Box padding={1}>
+      <Box padding={padding}>
       {children}
       </Box>
     </Paper>
@@ -70,8 +73,6 @@ function loadCookies(data, getDefaultValue = false) {
   let musicPlayerState = {
     "playOrder": characters,
     "currentPlaying": characters[0],
-    "playingCountdownTimeout": null,
-    "playbackTimeout": null,
   }
   {
     let musicIds = {};
@@ -129,9 +130,6 @@ function loadCookies(data, getDefaultValue = false) {
 }
 
 export default function Page() {
-  let [highlight, setHighlight] = useState(0);
-  const cardRefs = useRef([]);
-  const [isHovering, setIsHovering] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState(null);
   const [musicPlayerState, setMusicPlayerState] = useState({
@@ -139,19 +137,37 @@ export default function Page() {
     "currentPlaying": "",
     "musicIds": {},
     "temporarySkip": {},
+  });
+  const [playbackState, setPlaybackState] = useState({
     "playingCountdownTimeout": null,
     "playbackTimeout": null,
-  });
-  const [globalSettingState, setGlobalSettingState] = useState({
+    "paused": true,
+    "playbackPaused": false,
+  })
+  const [audioState, setAudioState] = useState({
+    currentTime: 0,
+    duration: 0,
+  })
+  const [optionState, setOptionState] = useState({
     "cardPrefix": "./cards/",
     "relativeRoot": relativeRoot,
     "randomPlayPosition": false,
     "countdown": false,
     "playbackTime": 0,
   });
+  const audioRef = useRef(null);
+  const audioCountdownRef = useRef(null);
   const [tabValue, setTabValue] = useState(0);
 
-  const musicPlayerPanelExposedMethodsRef = useRef({});
+  const globalState = {
+    musicPlayerState, setMusicPlayerState,
+    playbackState, setPlaybackState,
+    audioState, setAudioState,
+    optionState, setOptionState,
+  }
+  const globalRefs = {
+    audioRef, audioCountdownRef
+  }
 
   useEffect(() => {
     if (!isLoading) return;
@@ -217,36 +233,61 @@ export default function Page() {
     return null;
   }
 
-  const playNextMusic = (additionalToSet = {}) =>{
-    let [nextIndex, nextCharacter] = findNextCharacterInPlaylist(musicPlayerState, musicPlayerState.currentPlaying)
-    let playbackTimeout = null;
-    if (globalSettingState.playbackTime > 0) {
-      musicPlayerPanelExposedMethodsRef.current.setPlaybackPaused(false);
-      playbackTimeout = setTimeout(() => {
-        if (musicPlayerPanelExposedMethodsRef.current) {
-          musicPlayerPanelExposedMethodsRef.current.playbackPause();
-        }
-      }, globalSettingState.playbackTime * 1000);
+  const userPause = () => {
+    setPlaybackState({
+      ...playbackState,
+      paused: true
+    });
+    if (globalRefs.audioRef.current) {
+      globalRefs.audioRef.current.pause();
     }
+  }
+
+  const playbackPause = () => {
+    setPlaybackState({
+      ...playbackState,
+      playbackPaused: true
+    });
+    if (globalRefs.audioRef.current) {
+      globalRefs.audioRef.current.pause();
+    }
+  }
+
+  const playMusicOfCharacter = (character, additionalToSet = {}) => {
+    let playbackTimeout = null;
+    if (optionState.playbackTime > 0) {
+      playbackTimeout = setTimeout(() => {
+        playbackPause();
+      }, optionState.playbackTime * 1000);
+    }
+    setPlaybackState({
+      ...playbackState,
+      ...additionalToSet,
+      playbackPaused: false,
+      playbackTimeout: playbackTimeout
+    })
     setMusicPlayerState({
       ...musicPlayerState,
-      ...additionalToSet,
-      currentPlaying: nextCharacter,
-      playbackTimeout: playbackTimeout
+      currentPlaying: character,
     });
-    docCookies.setItem("currentPlaying", nextIndex);
+    docCookies.setItem("currentPlaying", Object.keys(data.data).indexOf(character));
+  }
+
+  const playNextMusic = (additionalToSet = {}) =>{
+    let [_, nextCharacter] = findNextCharacterInPlaylist(musicPlayerState, musicPlayerState.currentPlaying)
+    playMusicOfCharacter(nextCharacter, additionalToSet)
   }
   
   const onNextMusicClick = () => {
-    if (!globalSettingState.countdown) {
+    if (!optionState.countdown) {
       playNextMusic();
       return;
     } else {
-      if (musicPlayerPanelExposedMethodsRef.current) {
-        musicPlayerPanelExposedMethodsRef.current.playCountdown();
+      if (globalRefs.audioCountdownRef.current) {
+        globalRefs.audioCountdownRef.current.play();
       }
-      setMusicPlayerState({
-        ...musicPlayerState,
+      setPlaybackState({
+        ...playbackState,
         playingCountdownTimeout: setTimeout(() => {
           playNextMusic({
             playingCountdownTimeout: null
@@ -257,18 +298,12 @@ export default function Page() {
   }
   
   const onPreviousMusicClick = () => {
-    let [previousIndex, previousCharacter] = findPreviousCharacterInPlaylist(musicPlayerState, musicPlayerState.currentPlaying)
-    setMusicPlayerState({
-      ...musicPlayerState,
-      currentPlaying: previousCharacter
-    });
-    docCookies.setItem("currentPlaying", previousIndex);
+    let [_, previousCharacter] = findPreviousCharacterInPlaylist(musicPlayerState, musicPlayerState.currentPlaying)
+    playMusicOfCharacter(previousCharacter);
   }
 
   const reroll = (random = false) => {
-    if (musicPlayerPanelExposedMethodsRef.current) {
-      musicPlayerPanelExposedMethodsRef.current.pause();
-    }
+    userPause();
     let characters = Object.keys(data.data);
     let temporarySkip = {};
     for (let i = 0; i < characters.length; i++) {
@@ -305,7 +340,7 @@ export default function Page() {
     docCookies.setItem("currentPlaying", characters.indexOf(currentPlaying));
   }
 
-  const globalControlMethods = {
+  const globalMethods = {
     "reroll": reroll,
     "setTemporarySkip": (character) => {
       let newTemporarySkip = {...musicPlayerState.temporarySkip}
@@ -314,6 +349,28 @@ export default function Page() {
         ...musicPlayerState,
         temporarySkip: newTemporarySkip
       })
+    },
+    "getMusicName": getMusicName,
+    "getMusicFilename": getMusicFilename,
+    "playMusicOfCharacter": playMusicOfCharacter,
+  }
+
+  const onPauseMusicClick = () => {
+    const playbackPaused = playbackState.playbackPaused;
+    const paused = playbackState.paused;
+    let updater = {...playbackState}
+    if (!playbackPaused) updater.paused = !paused;
+    updater.playbackPaused = false;
+    setPlaybackState(updater);
+    if (globalRefs.audioRef.current) {
+      let audioRef = globalRefs.audioRef;
+      if (paused || playbackPaused) {
+        audioRef.current.play().catch((e) => {
+          console.log("Failed to play", e);
+        });
+      } else {
+        audioRef.current.pause();
+      }
     }
   }
 
@@ -329,7 +386,7 @@ export default function Page() {
 
         <Tabs value={tabValue} onChange={handleTabsChange}>
           <Tab label="Music Player" />
-          <Tab label="Tab 2" />
+          <Tab label="Music List" />
           <Tab label="Tab 3" />
         </Tabs>
 
@@ -342,12 +399,12 @@ export default function Page() {
             <BoxPaper>
               <MusicPlayerPanel
                 data={data}
-                musicPlayerState={musicPlayerState}
-                globalSettingState={globalSettingState}
                 onNextClick={onNextMusicClick}
+                onPauseClick={onPauseMusicClick}
                 onPreviousClick={onPreviousMusicClick}
-                globalControlMethods={globalControlMethods}
-                exposeMethods={musicPlayerPanelExposedMethodsRef}
+                globalMethods={globalMethods}
+                globalRefs={globalRefs}
+                globalState={globalState}
               ></MusicPlayerPanel>
             </BoxPaper>
             <BoxPaper>
@@ -358,24 +415,24 @@ export default function Page() {
 
                 </Stack>
                 <Stack direction="row" spacing={1}>
-                  <Button className="chinese" variant={globalSettingState.randomPlayPosition ? "contained" : "outlined"} color="primary" onClick={() => {
-                    setGlobalSettingState({
-                      ...globalSettingState,
-                      randomPlayPosition: !globalSettingState.randomPlayPosition
+                  <Button className="chinese" variant={optionState.randomPlayPosition ? "contained" : "outlined"} color="primary" onClick={() => {
+                    setOptionState({
+                      ...optionState,
+                      randomPlayPosition: !optionState.randomPlayPosition
                     });
                   }}>随机位置播放</Button>
-                  <Button className="chinese" variant={globalSettingState.countdown ? "contained" : "outlined"} color="primary" onClick={() => {
-                    setGlobalSettingState({
-                      ...globalSettingState,
-                      countdown: !globalSettingState.countdown
+                  <Button className="chinese" variant={optionState.countdown ? "contained" : "outlined"} color="primary" onClick={() => {
+                    setOptionState({
+                      ...optionState,
+                      countdown: !optionState.countdown
                     });
                   }}>倒计时</Button>
                 </Stack>
                 <TextField id="playLengthTextField" label="播放时长（0 = 无限）" variant="standard"
                   className="chinese"
-                  value={globalSettingState.playbackTime} 
-                  onChange={(event) => setGlobalSettingState({
-                    ...globalSettingState,
+                  value={optionState.playbackTime} 
+                  onChange={(event) => setOptionState({
+                    ...optionState,
                     playbackTime: parseFloat(event.target.value)
                   })}
                   type="number"
@@ -388,8 +445,24 @@ export default function Page() {
               </Stack>
             </BoxPaper>
           </TransitionTab>
-          <TransitionTab index={1} value={tabValue}><BoxPaper>
-            Hello there 2
+          <TransitionTab index={1} value={tabValue}><BoxPaper padding={0}>
+            <Box paddingTop={1} width="100%"></Box>
+            <PlayControls
+              onPreviousClick={onPreviousMusicClick}
+              onNextClick={onNextMusicClick}
+              onPauseClick={onPauseMusicClick}
+              globalState={globalState}
+            ></PlayControls>
+            <PlaySlider 
+              globalState={globalState}
+              globalRefs={globalRefs}
+            ></PlaySlider>
+            <PlayList 
+              data={data} musicPlayerState={musicPlayerState} globalMethods={globalMethods}
+              listStyles={{
+                marginTop: "0.5em"
+              }}
+            ></PlayList>
           </BoxPaper></TransitionTab>
           <TransitionTab index={2} value={tabValue}><BoxPaper>
             Hello there 3
