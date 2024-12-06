@@ -433,7 +433,7 @@ export default function MusicPlayerPanel({
       globalState={globalState}
     ></PlayControls>
     {audioPlayer}
-    <audio ref={audioCountdownRef} src="../Bell3.mp3"></audio>
+    <audio ref={audioCountdownRef} src={globalState.optionState.relativeRoot + "Bell3.mp3"}></audio>
       
     <Box align="left" width="100%" >
       <Typography className="chinese">队列中 (单击可选择将其跳过)</Typography>

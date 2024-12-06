@@ -3,6 +3,7 @@
 import { List, ListItem, Typography, Tabs, Tab, Paper, Box, Stack, TextField } from "@mui/material";
 import CardComponent from "./cardComponent"
 import { useState, useRef, useEffect, useTransition, useMemo } from "react";
+import { usePathname } from "next/navigation";
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import localFont from "next/font/local";
@@ -16,7 +17,6 @@ import PlayList from "./playList";
 import { PlaySlider, PlayControls } from "./playControls";
 import MusicIdSelectPanel from "./musicIdSelectPanel";
 
-const relativeRoot = "../"
 const constrainedWidth = {
   width: '100%',
   '@media (min-width: 720px)': {
@@ -155,6 +155,12 @@ function loadCookies(data, getDefaultValue = false) {
 }
 
 export default function Page() {
+
+  // get page url
+  let path = usePathname();
+  console.log(path);
+  let relativeRoot = path.substring(0, path.lastIndexOf('/') + 1);
+
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState(null);
   const [musicPlayerState, setMusicPlayerState] = useState({
