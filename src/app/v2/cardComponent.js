@@ -36,7 +36,7 @@ const CardComponent = forwardRef(({
 
   return (
     <Paper
-      style={{
+      sx={{
         backgroundColor: "white",
         width: width,
         ...paperStyles,

@@ -67,7 +67,6 @@ const QueueCardGroup = forwardRef(({
   data, containerWidthPixels,
   globalState, globalMethods,
 }, ref) => {
-  const [hoveredCharacter, setHoveredCharacter] = useState(null);
   const singleInterval = 0.9;
   const pluralInterval = 0.4;
   const cardWidthRatio = 0.167;
@@ -80,53 +79,82 @@ const QueueCardGroup = forwardRef(({
   const optionState = globalState.optionState;
   let playOrder = musicPlayerState.playOrder;
   let currentCharacter = musicPlayerState.currentPlaying;
-  let currentCharacterIndex = playOrder.indexOf(currentCharacter);
   let queueItems = [];
   let totalFilenames = [];
-  let displacement = singleMarginLeft;
-  let flag = false;
   let totalCardCount = 0;
   const aspectRatio = 703/1000;
   const dy = cardWidth / aspectRatio * 0.05;
+  
+  const existentCharacters = []; // those with musicId != -1
   for (let i = 0; i < playOrder.length; i++) {
     let character = playOrder[i];
-    if (musicPlayerState.musicIds[character] === -1) continue;
-    let filenames = data["data"][character]["card"]
-    if (typeof filenames === "string") {
-      filenames = [filenames];
+    if (musicPlayerState.musicIds[character] !== -1) {
+      existentCharacters.push(character);
     }
-    filenames = filenames.map((filename) => {
-      return optionState.relativeRoot + optionState.cardPrefix + filename;
-    });
-    const width = cardWidth * (1 + (filenames.length - 1) * pluralInterval);
-    totalFilenames.push(filenames)
-    if (!flag) {
-      displacement -= width - singleMarginLeft;
-    }
-    if (character === currentCharacter) {
-      flag = true;
-    }
-    totalCardCount += filenames.length;
   }
-  flag = false;
-  let counter = 0;
-  for (let i = 0; i < playOrder.length; i++) {
-    let character = playOrder[i];
-    if (musicPlayerState.musicIds[character] === -1) continue;
-    let filenames = totalFilenames[counter]; counter++;
-    const width = cardWidth * (1 + (filenames.length - 1) * pluralInterval);
-    let cardDisplacement = displacement;
-    if (!flag) cardDisplacement -= pastDisplacement;
-    if (character === currentCharacter) {
-      flag = true;
+
+  let renderBeginIndex = existentCharacters.indexOf(currentCharacter);
+  let renderShownIndex = renderBeginIndex + 1;
+  {
+    let i = renderBeginIndex;
+    while (i > 0 && musicPlayerState.temporarySkip[existentCharacters[i - 1]]) { i--; }
+    renderBeginIndex = i;
+  }
+
+  let displacement = singleMarginLeft;
+  let placeholderWidth = singleMarginLeft;
+  let renderOrder = [];
+  {
+    let accumulatedWidth = singleMarginLeft;
+    let breakNext = false;
+    let shownNotSkipped = false;
+    for (let i = 0; i < existentCharacters.length; i++) {
+      let character = existentCharacters[i];
+      let filenames = data["data"][character]["card"]
+      if (typeof filenames === "string") {
+        filenames = [filenames];
+      }
+      filenames = filenames.map((filename) => {
+        return optionState.relativeRoot + optionState.cardPrefix + filename;
+      });
+
+      const width = cardWidth * (1 + (filenames.length - 1) * pluralInterval);
+
+      if (i < renderBeginIndex) {
+        placeholderWidth += width - singleMarginLeft;
+      } else {
+        totalFilenames.push(filenames)
+        renderOrder.push(character);
+        totalCardCount += filenames.length;
+      }
+
+      if (i < renderShownIndex) {
+        displacement -= width - singleMarginLeft;
+      } else {
+        if (!musicPlayerState.temporarySkip[character]) {
+          shownNotSkipped = true;
+        }
+        if (shownNotSkipped) {
+          accumulatedWidth += width - singleMarginLeft;
+        }
+        if (breakNext) {
+          break;
+        }
+        if (accumulatedWidth > containerWidthPixels) {
+          breakNext = true;
+        }
+      }
     }
+    renderShownIndex -= renderBeginIndex;
+    renderBeginIndex = 0;
+  }
+
+  {
+    const width = placeholderWidth;
+    let cardDisplacement = displacement - pastDisplacement;
     let transform = `translateX(${cardDisplacement}px)`;
-    if (character === hoveredCharacter) {
-      transform += " translateY(-" + dy + "px)";
-    }
     queueItems.push(<Box 
-      key={i}
-      ref={ref}
+      key="placeholder"
       sx={{
         align: "center",
         alignItems: "center",
@@ -139,37 +167,68 @@ const QueueCardGroup = forwardRef(({
         marginTop: dy + "px",
         zIndex: totalCardCount,
       }}
-      onClick={() => {
-        globalMethods.setTemporarySkip(character);
-        console.log("click", character)
-      }}
-      onMouseOver={() => {
-        setHoveredCharacter(character);
-      }}
-    >
-      <Stack direction="row" spacing={0} alignItems="center" justifyContent={"center"}>
-        {filenames.map((filename, index) => {
-          totalCardCount -= 1;
-          return <CardComponent 
-            key={character + index} src={filename} width={cardWidth + "px"} elevation={6}
-            paperStyles={{
-              marginLeft: index === 0 ? "0%" : ("-" + pluralMarginLeft + "px"),
-              zIndex: filenames.length - 1 - index,
-              backgroundColor: (
-                character == hoveredCharacter ?
-                  (musicPlayerState.temporarySkip[character] ? "#DAEBEB" : "lightcyan") :
-                  (musicPlayerState.temporarySkip[character] ? "lightgray" : "white")
-              )
-            }}
-            imageStyles={{
-              filter: musicPlayerState.temporarySkip[character] ? "grayscale(100%)" : "none"
-            }}
-          ></CardComponent>
-        })}
-      </Stack>
-    </Box>);
+    ></Box>);
   }
-  return <Box sx={{
+
+  {
+    for (let i = 0; i < renderOrder.length; i++) {
+      let character = renderOrder[i];
+      let filenames = totalFilenames[i];
+      const width = cardWidth * (1 + (filenames.length - 1) * pluralInterval);
+      let cardDisplacement = displacement;
+      if (i < renderShownIndex) cardDisplacement -= pastDisplacement;
+      let transform = `translateX(${cardDisplacement}px)`;
+      queueItems.push(<Box 
+        key={character}
+        sx={{
+          align: "center",
+          alignItems: "center",
+          flexShrink: 0,
+          width: width + "px",
+          position: "relative",
+          transition: "transform 0.5s",
+          transform: transform,
+          marginLeft: "-" + singleMarginLeft + "px",
+          marginTop: dy + "px",
+          zIndex: totalCardCount,
+        }}
+        onClick={() => {
+          globalMethods.setTemporarySkip(character);
+          console.log("click", character)
+        }}
+      >
+        <Box sx={{
+          transition: "transform 0.5s",
+          ":hover": {
+            transform: "translateY(-" + dy + "px)",
+          }
+        }}>
+          <Stack direction="row" spacing={0} alignItems="center" justifyContent={"center"}>
+            {filenames.map((filename, index) => {
+              totalCardCount -= 1;
+              return <CardComponent 
+                key={character + index} src={filename} width={cardWidth + "px"} elevation={6}
+                paperStyles={{
+                  marginLeft: index === 0 ? "0%" : ("-" + pluralMarginLeft + "px"),
+                  zIndex: filenames.length - 1 - index,
+                  backgroundColor: musicPlayerState.temporarySkip[character] ? "lightgray" : "white",
+                  ":hover": {
+                    backgroundColor: musicPlayerState.temporarySkip[character] ? "#DAEBEB" : "lightcyan"
+                  }
+                }}
+                imageStyles={{
+                  filter: musicPlayerState.temporarySkip[character] ? "grayscale(100%)" : "none"
+                }}
+              ></CardComponent>
+            })}
+          </Stack>
+        </Box>
+      </Box>);
+    }
+  }
+
+  console.log("QueueCardGroup item count = ", queueItems.length);
+  return <Box ref={ref} sx={{
       display: "flex",
       flexWrap: "nowrap",
       overflowX: "hidden",
@@ -177,8 +236,6 @@ const QueueCardGroup = forwardRef(({
       alignItems: "flex-start",
       justifyContent: "flex-start",
       width: "100%",
-    }} onMouseLeave={() => {
-      setHoveredCharacter(null)
     }}>
       {queueItems}
   </Box>
