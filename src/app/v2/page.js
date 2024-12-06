@@ -153,11 +153,6 @@ function loadCookies(data, getDefaultValue = false) {
 
 export default function Page() {
 
-  // get page url
-  // let path = usePathname();
-  // console.log(path);
-  let relativeRoot = "../"
-
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState(null);
   const [musicPlayerState, setMusicPlayerState] = useState({
@@ -177,8 +172,8 @@ export default function Page() {
     duration: 0,
   })
   const [optionState, setOptionState] = useState({
-    "cardPrefix": "./cards/",
-    "relativeRoot": relativeRoot,
+    "cardPrefix": "cards/",
+    "relativeRoot": "",
     "randomPlayPosition": false,
     "countdown": false,
     "playbackTime": 0,
@@ -196,6 +191,19 @@ export default function Page() {
   const globalRefs = {
     audioRef, audioCountdownRef
   }
+
+  useEffect(() => {
+    // set relative root
+    let entirePath = window.location.href;
+    console.log("Entire path is", entirePath);
+    // relative root is one level up from the current page
+    let relativeRoot = entirePath.substring(0, entirePath.lastIndexOf('/'));
+    console.log("Relative root is", relativeRoot);
+    setOptionState({
+      ...optionState,
+      relativeRoot: relativeRoot + "/"
+    })
+  }, [])
 
   useEffect(() => {
     if (!isLoading) return;
@@ -455,8 +463,6 @@ export default function Page() {
       padding={1}
       align="center" alignItems="center" justifyContent="center"
       >
-        Hello ther
-
         <Tabs value={tabValue} onChange={handleTabsChange} className="chinese">
           <Tab label="卡牌播放器" />
           <Tab label="列表播放器" />
