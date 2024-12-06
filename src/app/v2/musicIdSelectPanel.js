@@ -3,7 +3,7 @@ import {
   Collapse, Button, Box, Typography, Link, ButtonGroup
 } from '@mui/material';
 import docCookies from './docCookies';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   RadioButtonChecked as HalfIcon,
@@ -71,9 +71,34 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
   const isSmallScreen = !useMediaQuery("(min-width:600px)");
   const theme = useTheme();
 
-  const [ openedCharacter, setOpenedCharacter ] = useState(null); 
-  const [ openedSection, setOpenedSection ] = useState(null);
-  const [ openedPreset, setOpenedPreset ] = useState(null);
+  const [ openedCharacter, rawSetOpenedCharacter ] = useState(null); 
+  const [ openedSection, rawSetOpenedSection ] = useState(null);
+  const [ openedPreset, rawSetOpenedPreset ] = useState(null);
+
+  const [ lastOpenedCharacter, setLastOpenedCharacter ] = useState(null);
+  const [ lastOpenedSection, setLastOpenedSection ] = useState(null);
+  const [ lastOpenedPreset, setLastOpenedPreset ] = useState(null);
+
+  const setOpenedCharacter = (v) => {
+    if (openedCharacter !== v) {
+      setLastOpenedCharacter(openedCharacter);
+      rawSetOpenedCharacter(v);
+    }
+  }
+
+  const setOpenedPreset = (v) => {
+    if (openedPreset !== v) {
+      setLastOpenedPreset(openedPreset);
+      rawSetOpenedPreset(v);
+    }
+  }
+
+  const setOpenedSection = (v) => {
+    if (openedSection !== v) {
+      setLastOpenedSection(openedSection);
+      rawSetOpenedSection(v);
+    }
+  }
 
   let { musicPlayerState, setMusicPlayerState } = globalState;
   let { musicIds, currentPlaying } = musicPlayerState;
@@ -83,13 +108,16 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
   let cardPrefixSelector = null; 
   {
     let selectors = [];
-    for (let i = 0; i < cardStyleSet.length; i++) {
-      let [cardPrefix, cardPath, cardDescription] = cardStyleSet[i];
-      selectors.push(<Box width="100%" key={i} alignItems="flex-start" justifyItems="flex-start" alignContent="flex-start" textAlign="left" spacing={1}>
-          <FormControlLabel key={i} value={cardPath} control={<Radio size="medium" sx={{height: "1.5em"}} />} label={cardPrefix} />
-          <Box paddingLeft={4}>{cardDescription}</Box>
-        </Box>
-      );
+    const renderCollapseContent = openedSection === "cardPrefix" || lastOpenedSection === "cardPrefix";
+    if (renderCollapseContent) {
+      for (let i = 0; i < cardStyleSet.length; i++) {
+        let [cardPrefix, cardPath, cardDescription] = cardStyleSet[i];
+        selectors.push(<Box width="100%" key={i} alignItems="flex-start" justifyItems="flex-start" alignContent="flex-start" textAlign="left" spacing={1}>
+            <FormControlLabel key={i} value={cardPath} control={<Radio size="medium" sx={{height: "1.5em"}} />} label={cardPrefix} />
+            <Box paddingLeft={4}>{cardDescription}</Box>
+          </Box>
+        );
+      }
     }
     cardPrefixSelector = (
       <Box width="100%"><Stack>
@@ -107,7 +135,7 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
         >卡牌风格选择</Button>
         <Collapse in={openedSection === "cardPrefix"}>
           <Box paddingTop={1} />
-          <Box width="100%" paddingLeft={"2em"}>
+          {renderCollapseContent && <Box width="100%" paddingLeft={"2em"}>
             <RadioGroup 
               key="cardPrefix" 
               value={globalState.optionState.cardPrefix} 
@@ -119,7 +147,7 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
             >
               {selectors}
             </RadioGroup>
-          </Box>
+          </Box>}
         </Collapse>
       </Stack></Box>
     )
@@ -154,86 +182,91 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
 
   let presetsSelector = null;
   {
+    const renderCollapseContent = openedSection === "presets" || lastOpenedSection === "presets";
     let selectors = [];
-    Object.entries(data.idpresets).forEach(([tagName, pairs]) => {
-      let fulfilled = [];
-      let counter = 0;
-      let totalPairs = Object.keys(pairs).length;
-      Object.entries(pairs).map(([character, musicId]) => {
-        if (musicIds[character] === musicId) {
-          fulfilled.push(true);
-          counter += 1;
-        } else {
-          fulfilled.push(false);
-        }
-      });
-      selectors.push(<Box key={tagName} width="100%">
-        <Box alignItems="center" display="flex">
-          {totalPairs === counter && <FullIcon color={"warning"} />}
-          {totalPairs !== counter && counter > 0 && <HalfIcon color={"success"} />}
-          {counter === 0 && <EmptyIcon color={"primary"} />}
-          <ButtonGroup size="small"
-            className="chinese"
-            sx={{
-              textTransform: "none", justifyContent: "flex-start", textOverflow: "ellipsis", 
-              overflow: "hidden", whiteSpace: "nowrap", marginRight: "1em",
-              display: "flex", paddingLeft: "0.5em", width: "100%"
-            }}
-            color={totalPairs === counter ? "warning" : (
-              counter > 0 ? "success" : "primary"
-            )}
-          >
-            <Button width="80%" 
-              variant={openedPreset === tagName ? "contained" : "outlined"}
+    if (renderCollapseContent) {
+      Object.entries(data.idpresets).forEach(([tagName, pairs]) => {
+        let fulfilled = [];
+        let counter = 0;
+        let totalPairs = Object.keys(pairs).length;
+        Object.entries(pairs).map(([character, musicId]) => {
+          if (musicIds[character] === musicId) {
+            fulfilled.push(true);
+            counter += 1;
+          } else {
+            fulfilled.push(false);
+          }
+        });
+        const renderCollapseContent = tagName === openedPreset || tagName === lastOpenedPreset;
+        selectors.push(<Box key={tagName} width="100%">
+          <Box alignItems="center" display="flex">
+            {totalPairs === counter && <FullIcon color={"warning"} />}
+            {totalPairs !== counter && counter > 0 && <HalfIcon color={"success"} />}
+            {counter === 0 && <EmptyIcon color={"primary"} />}
+            <ButtonGroup size="small"
+              className="chinese"
               sx={{
-                flex: 3,
-                justifyContent: "flex-start",
-              }} onClick={() => {
-              if (openedPreset === tagName) {
-                setOpenedPreset(null);
-              } else {
-                setOpenedPreset(tagName);
-              }
-            }}>{tagName}</Button>
-            <Button width="20%" 
-              variant={"outlined"}
-              sx={{flex: 1, maxWidth: "100px"}} 
-              disabled={totalPairs === counter}
-              onClick={() => {
-                setOpenedPreset(tagName);
-                let newMusicIds = {...musicIds};
-                Object.entries(pairs).map(([character, musicId]) => {
-                  newMusicIds[character] = musicId;
-                });
-                recordMusicIdsCookie(data, newMusicIds);
-                setMusicIdsEnsurePlayExistent(newMusicIds);
+                textTransform: "none", justifyContent: "flex-start", textOverflow: "ellipsis", 
+                overflow: "hidden", whiteSpace: "nowrap", marginRight: "1em",
+                display: "flex", paddingLeft: "0.5em", width: "100%"
               }}
-            >应用</Button>
-          </ButtonGroup>
-        </Box>
-        <Collapse in={openedPreset === tagName} orientation="vertical">
-          <Box paddingTop={1} /><Box width="100%" paddingLeft={"0.5em"}>
-            <Stack>
-              {Object.entries(pairs).map(([character, musicId], index) => {
-                return <Box key={index} sx={{
-                  // overflow: "hidden", whiteSpace: "nowrap",
-                  alignItems: "center", display: "flex"
-                }}>
-                  {fulfilled[index] && <CheckIcon fontSize="small" color="warning"/>}
-                  {!fulfilled[index] && <CrossIcon fontSize="small" color="primary"/>}
-                  <Typography sx={{
-                    // overflow: "hidden", whiteSpace: "nowrap",
-                    alignItems: "center", paddingLeft: "0.2em",
-                  }} color={fulfilled[index] ? "#ffa726" : "primary"}>
-                    {character} ⇒ {getMusicNameWithId(character, musicId)}
-                  </Typography>
-                </Box>
-              })}
-            </Stack>
+              color={totalPairs === counter ? "warning" : (
+                counter > 0 ? "success" : "primary"
+              )}
+            >
+              <Button width="80%" 
+                variant={openedPreset === tagName ? "contained" : "outlined"}
+                sx={{
+                  flex: 3,
+                  justifyContent: "flex-start",
+                }} onClick={() => {
+                if (openedPreset === tagName) {
+                  setOpenedPreset(null);
+                } else {
+                  setOpenedPreset(tagName);
+                }
+              }}>{tagName}</Button>
+              <Button width="20%" 
+                variant={"outlined"}
+                sx={{flex: 1, maxWidth: "100px"}} 
+                disabled={totalPairs === counter}
+                onClick={() => {
+                  setOpenedPreset(tagName);
+                  let newMusicIds = {...musicIds};
+                  Object.entries(pairs).map(([character, musicId]) => {
+                    newMusicIds[character] = musicId;
+                  });
+                  recordMusicIdsCookie(data, newMusicIds);
+                  setMusicIdsEnsurePlayExistent(newMusicIds);
+                }}
+              >应用</Button>
+            </ButtonGroup>
           </Box>
-        </Collapse>
-      </Box>)
-    });
+          <Collapse in={openedPreset === tagName} orientation="vertical">
+            <Box paddingTop={1} />
+            {renderCollapseContent && <Box width="100%" paddingLeft={"0.5em"}>
+              <Stack>
+                {Object.entries(pairs).map(([character, musicId], index) => {
+                  return <Box key={index} sx={{
+                    // overflow: "hidden", whiteSpace: "nowrap",
+                    alignItems: "center", display: "flex"
+                  }}>
+                    {fulfilled[index] && <CheckIcon fontSize="small" color="warning"/>}
+                    {!fulfilled[index] && <CrossIcon fontSize="small" color="primary"/>}
+                    <Typography sx={{
+                      // overflow: "hidden", whiteSpace: "nowrap",
+                      alignItems: "center", paddingLeft: "0.2em",
+                    }} color={fulfilled[index] ? "#ffa726" : "primary"}>
+                      {character} ⇒ {getMusicNameWithId(character, musicId)}
+                    </Typography>
+                  </Box>
+                })}
+              </Stack>
+            </Box>}
+          </Collapse>
+        </Box>)
+      });
+    }
     presetsSelector = (
       <Box width="100%"><Stack>
         <Button size="small" width="100%" color="warning" 
@@ -249,14 +282,15 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
           className="chinese"
         >预设选择</Button>
         <Collapse in={openedSection === "presets"}>
-          <Box paddingTop={1} /><Box width="100%" paddingLeft={"2em"}>
+          <Box paddingTop={1} />
+          {renderCollapseContent && <Box width="100%" paddingLeft={"2em"}>
             <Stack spacing={1}>
               <Typography color="gray" className="chinese">
                 单击预设名展开或收起查看详情。
               </Typography>
               {selectors}
             </Stack>
-          </Box>
+          </Box>}
         </Collapse>
       </Stack></Box>
     )
@@ -283,6 +317,9 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
       if (selectedId !== -1) {
         [selectedMusicName, selectedAlbumName] = getMusicName(musicList[selectedId]);
       }
+      
+      const renderCollapseContent = character === openedCharacter || character === lastOpenedCharacter;
+
       selectors.push(
         <FormControl variant="outlined" key={character} width="100%">
           <Box direction="row" spacing={1} width="100%" display="flex" justifyContent="center" alignItems="center">
@@ -307,37 +344,39 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
             }}>{selectedMusicName}</Typography>}
           </Box>
           <Collapse in={openedCharacter === character} orientation="vertical">
-            <Box paddingTop={1} /><Box width="100%" paddingLeft={"0.5em"}>
-            <RadioGroup 
-              key={character} 
-              variant="outlined"
-              value={musicIds[character]} 
-              onChange={(event) => {
-                let newMusicIds = {...musicIds}
-                newMusicIds[character] = parseInt(event.target.value);
-                recordMusicIdsCookie(data, newMusicIds);
-                setMusicIdsEnsurePlayExistent(newMusicIds);
-              }}
-            >
-              {musicNames.map((musicName, index) => {
-                return (
-                  <FormControlLabel 
-                    key={index} 
-                    value={index} 
-                    control={<Radio />} 
-                    label={musicName}
-                    size="small"
-                  />
-                );
-              })}
-              <FormControlLabel 
-                key={-1} 
-                value={-1} 
-                control={<Radio />} 
-                label="移除"
-                size="small"
-              />
-            </RadioGroup></Box>
+            <Box paddingTop={1} />
+            {renderCollapseContent && <Box width="100%" paddingLeft={"0.5em"}>
+              <RadioGroup 
+                key={character} 
+                variant="outlined"
+                value={musicIds[character]} 
+                onChange={(event) => {
+                  let newMusicIds = {...musicIds}
+                  newMusicIds[character] = parseInt(event.target.value);
+                  recordMusicIdsCookie(data, newMusicIds);
+                  setMusicIdsEnsurePlayExistent(newMusicIds);
+                }}
+              >
+                {musicNames.map((musicName, index) => {
+                  return (
+                    <FormControlLabel 
+                      key={index} 
+                      value={index} 
+                      control={<Radio />} 
+                      label={musicName}
+                      size="small"
+                    />
+                  );
+                })}
+                <FormControlLabel 
+                  key={-1} 
+                  value={-1} 
+                  control={<Radio />} 
+                  label="移除"
+                  size="small"
+                />
+              </RadioGroup>
+            </Box>}
           </Collapse>
         </FormControl>
       );

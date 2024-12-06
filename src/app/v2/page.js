@@ -2,7 +2,7 @@
 
 import { List, ListItem, Typography, Tabs, Tab, Paper, Box, Stack, TextField } from "@mui/material";
 import CardComponent from "./cardComponent"
-import { useState, useRef, useEffect, useTransition } from "react";
+import { useState, useRef, useEffect, useTransition, useMemo } from "react";
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import localFont from "next/font/local";
@@ -437,6 +437,12 @@ export default function Page() {
     }
   }
 
+  const memoizedMusicIdSelectPanel = useMemo(() => {
+    return <MusicIdSelectPanel
+      data={data} globalState={globalState} globalMethods={globalMethods}
+    ></MusicIdSelectPanel>
+  }, [data, globalState.musicPlayerState.musicIds, globalState.optionState.cardPrefix, globalMethods])
+
   return <ThemeProvider theme={darkTheme}>
     {isLoading ? <div>Loading...</div> : <Box align="center" alignItems="center" justifyContent="center" sx={{width: "100%"}}>
       <Box sx={{
@@ -528,9 +534,7 @@ export default function Page() {
             ></PlayList>
           </BoxPaper></TransitionTab>
           <TransitionTab index={2} value={tabValue}><BoxPaper>
-            <MusicIdSelectPanel
-              data={data} globalState={globalState} globalMethods={globalMethods}
-            ></MusicIdSelectPanel>
+            {memoizedMusicIdSelectPanel}
           </BoxPaper></TransitionTab>
         </Box>
 
