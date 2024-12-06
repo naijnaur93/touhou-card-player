@@ -239,7 +239,7 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
                   recordMusicIdsCookie(data, newMusicIds);
                   setMusicIdsEnsurePlayExistent(newMusicIds);
                 }}
-              >应用</Button>
+              >{totalPairs === counter ? "已应用" : "应用"}</Button>
             </ButtonGroup>
           </Box>
           <Collapse in={openedPreset === tagName} orientation="vertical">
