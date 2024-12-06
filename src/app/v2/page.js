@@ -416,6 +416,7 @@ export default function Page() {
     "playMusicOfCharacter": playMusicOfCharacter,
     "characterInPlaylist": characterInPlaylist,
     "findNextCharacterInPlaylist": findNextCharacterInPlaylist,
+    "findPreviousCharacterInPlaylist": findPreviousCharacterInPlaylist,
   }
 
   const onPauseMusicClick = () => {

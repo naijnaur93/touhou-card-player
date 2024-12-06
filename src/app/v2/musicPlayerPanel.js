@@ -16,10 +16,13 @@ import * as utils from "./utils";
 import { useTheme } from "@mui/material/styles";
 import { PlayControls, PlaySlider } from "./playControls";
 
+const transitionTime = 0.8;
+
 const ProminentCardGroup = forwardRef(({ 
   data, character, isFocused,
   musicFilename,
   globalState,
+  empty = false
 }, ref) => {
   let filenames = data["data"][character]["card"]
   if (typeof filenames === "string") {
@@ -39,7 +42,7 @@ const ProminentCardGroup = forwardRef(({
       width: "clamp(0px, 100%, 720px)",
     }}
   >
-    <Stack direction="column" spacing={2} paddingTop={1}>
+    {!empty && <Stack direction="column" spacing={2} paddingTop={1}>
       <Stack direction="column" spacing={0}>
       <Typography sx={{whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: "clamp(1em, 1.5em, 3vw)"}}>{musicName}</Typography>
       <Typography sx={{whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: "clamp(0.8em, 1.2em, 2.4vw)"}}>{albumName}</Typography>
@@ -50,15 +53,15 @@ const ProminentCardGroup = forwardRef(({
           return <CardComponent 
             key={index} src={filename} width="30%" elevation={6}
             paperStyles={{
-              marginLeft: index === 0 ? "0%" : (isFocused ? "1%" : "-20%"),
+              marginLeft: (index === 0 ? "0%" : (isFocused ? "2%" : "-20%")) + " !important",
               zIndex: filenames.length - index,
-              transition: "margin-left 0.6s",
-              transitionDelay: "0.4s"
+              transition: "margin-left 0.8s",
+              transitionDelay: "0.3s"
             }}
           />
         })}
       </Stack>
-    </Stack>
+    </Stack>}
   </Box>
 })
 ProminentCardGroup.displayName = "ProminentCardGroup"
@@ -161,7 +164,7 @@ const QueueCardGroup = forwardRef(({
         flexShrink: 0,
         width: width + "px",
         position: "relative",
-        transition: "transform 0.5s",
+        transition: "transform " + transitionTime + "s",
         transform: transform,
         marginLeft: "-" + singleMarginLeft + "px",
         marginTop: dy + "px",
@@ -186,7 +189,7 @@ const QueueCardGroup = forwardRef(({
           flexShrink: 0,
           width: width + "px",
           position: "relative",
-          transition: "transform 0.5s",
+          transition: "transform " + transitionTime + "s",
           transform: transform,
           marginLeft: "-" + singleMarginLeft + "px",
           marginTop: dy + "px",
@@ -194,11 +197,10 @@ const QueueCardGroup = forwardRef(({
         }}
         onClick={() => {
           globalMethods.setTemporarySkip(character);
-          console.log("click", character)
         }}
       >
         <Box sx={{
-          transition: "transform 0.5s",
+          transition: "transform " + transitionTime + "s",
           ":hover": {
             transform: "translateY(-" + dy + "px)",
           }
@@ -227,7 +229,7 @@ const QueueCardGroup = forwardRef(({
     }
   }
 
-  console.log("QueueCardGroup item count = ", queueItems.length);
+  // console.log("QueueCardGroup item count = ", queueItems.length);
   return <Box ref={ref} sx={{
       display: "flex",
       flexWrap: "nowrap",
@@ -268,7 +270,6 @@ export default function MusicPlayerPanel({
   const isPlayingCountdown = playbackState.playingCountdownTimeout !== null;
 
   const paused = playbackState.paused;
-  const playbackPaused = playbackState.playbackPaused;
   
   useEffect(() => {
     const handleResize = () => {
@@ -328,7 +329,8 @@ export default function MusicPlayerPanel({
   let currentSource = data["sources"][getMusicNameOfCharacter(currentCharacter)];
   let playOrder = musicPlayerState.playOrder;
   let currentIndexInPlayOrder = playOrder.indexOf(currentCharacter);
-  let [_, nextCharacter] = globalMethods.findNextCharacterInPlaylist(musicPlayerState, currentCharacter);
+  let [_nid, nextCharacter] = globalMethods.findNextCharacterInPlaylist(musicPlayerState, currentCharacter);
+  let [_pid, prevCharacter] = globalMethods.findPreviousCharacterInPlaylist(musicPlayerState, currentCharacter);
   let nextSource = data["sources"][getMusicNameOfCharacter(nextCharacter)];
 
   let [audioPlayer, prepareAudio] = CachedAudioPlayer({ src: currentSource, onFetched: (src) => {
@@ -371,37 +373,44 @@ export default function MusicPlayerPanel({
     } 
   }, [isPlayingCountdown, audioRef]);
 
-  let switchSongButtonSize = layoutInfo.containerWidth * 0.125;
-  let switchSongButtonTop = layoutInfo.containerHeight * 0.5 - switchSongButtonSize / 2;
-  let switchSongButtonXDisplacement = layoutInfo.itemWidth / 2;
-  let prevSongButtonLeft = layoutInfo.containerWidth / 2 - switchSongButtonXDisplacement - switchSongButtonSize;
-  let nextSongButtonLeft = layoutInfo.containerWidth / 2 + switchSongButtonXDisplacement;
+  // let switchSongButtonSize = layoutInfo.containerWidth * 0.125;
+  // let switchSongButtonTop = layoutInfo.containerHeight * 0.5 - switchSongButtonSize / 2;
+  // let switchSongButtonXDisplacement = layoutInfo.itemWidth / 2;
+  // let prevSongButtonLeft = layoutInfo.containerWidth / 2 - switchSongButtonXDisplacement - switchSongButtonSize;
+  // let nextSongButtonLeft = layoutInfo.containerWidth / 2 + switchSongButtonXDisplacement;
 
   let prominents = [];
+  let renderProminents = [];
   let counter = 0;
   let value = 0;
   playOrder.forEach((character, index) => {
     if (musicPlayerState.musicIds[character] === -1) return;
+    if (musicPlayerState.temporarySkip[character]) return;
     if (character === currentCharacter) {
       value = counter;
     }
     counter++;
+    renderProminents.push(character);
   })
-  
-  playOrder.forEach((character, index) => {
-    if (musicPlayerState.musicIds[character] === -1) return;
-    prominents.push(<TransitionTab key={character} index={counter} value={value}>
-      <ProminentCardGroup 
-        key={character}
-        data={data} character={character} 
-        globalState={globalState}
-        musicFilename={utils.getMusicFilename(data, character, musicPlayerState)}
-        isFocused={index === currentIndexInPlayOrder}
-        ref={counter === 0 ? prominentCardGroupFirstItemRef : null}
-      />
-    </TransitionTab>)
-    counter++;
-  })
+
+  {
+    renderProminents.forEach((character, index) => {
+      let notEmpty = (character === currentCharacter) || (character === nextCharacter) || (character === prevCharacter);
+      let empty = !notEmpty;
+      prominents.push(<TransitionTab key={character} index={counter} value={value} transitionTime={transitionTime}>
+        <ProminentCardGroup 
+          key={character}
+          data={data} character={character} 
+          globalState={globalState}
+          musicFilename={utils.getMusicFilename(data, character, musicPlayerState)}
+          isFocused={character === currentCharacter}
+          ref={counter === 0 ? prominentCardGroupFirstItemRef : null}
+          empty={empty}
+        />
+      </TransitionTab>)
+      counter++;
+    })
+  }
 
   return <Stack spacing={1} align="center" alignItems="center">
     <Box width="100%" align="center" alignItems="center">
@@ -410,41 +419,6 @@ export default function MusicPlayerPanel({
         flexWrap: "nowrap",
       }} ref={prominentCardGroupContainerRef}
       >
-        {/* <Box sx={{
-          width: 0,
-          height: 0,
-          position: "relative",
-          zIndex: playOrder.length + 1,
-        }}>
-          <IconButton onClick={onPreviousClick} variant="outlined" color="primary" disabled={isPlayingCountdown}
-            sx={{
-              position: "absolute",
-              top: switchSongButtonTop,
-              left: prevSongButtonLeft,
-              height: switchSongButtonSize,
-              width: switchSongButtonSize,
-              minWidth: switchSongButtonSize,
-            }}
-          >
-            <LeftIcon sx={{
-              fontSize: layoutInfo.containerHeight * 0.2,
-            }}></LeftIcon>
-          </IconButton>
-          <IconButton onClick={onNextClick} variant="outlined" color="primary" disabled={isPlayingCountdown}
-            sx={{
-              position: "absolute",
-              top: switchSongButtonTop,
-              left: nextSongButtonLeft,
-              height: switchSongButtonSize,
-              width: switchSongButtonSize,
-              minWidth: switchSongButtonSize,
-            }}
-          >
-            <RightIcon sx={{
-              fontSize: layoutInfo.containerHeight * 0.2,
-            }}></RightIcon>
-          </IconButton>
-        </Box> */}
         {prominents}
       </Box>
     </Box>
