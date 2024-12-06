@@ -1,13 +1,10 @@
 'use client';
 
 import { List, ListItem, Typography, Tabs, Tab, Paper, Box, Stack, TextField } from "@mui/material";
-import CardComponent from "./cardComponent"
-import { useState, useRef, useEffect, useTransition, useMemo } from "react";
-import { usePathname } from "next/navigation";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import localFont from "next/font/local";
-import { useTheme } from "@mui/material/styles";
 import docCookies from "./docCookies";
 import MusicPlayerPanel from "./musicPlayerPanel";
 import { keyframes } from "@mui/material/styles";
@@ -157,9 +154,9 @@ function loadCookies(data, getDefaultValue = false) {
 export default function Page() {
 
   // get page url
-  let path = usePathname();
-  console.log(path);
-  let relativeRoot = path.substring(0, path.lastIndexOf('/') + 1);
+  // let path = usePathname();
+  // console.log(path);
+  let relativeRoot = "../"
 
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState(null);

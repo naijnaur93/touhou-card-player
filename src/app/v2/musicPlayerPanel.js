@@ -1,12 +1,6 @@
 import {
   List, ListItem, Button, Box, Stack, Typography, IconButton, Slider
 } from "@mui/material";
-import {
-  SkipNextRounded as RightIcon,
-  SkipPreviousRounded as LeftIcon,
-  PauseRounded as PauseIcon,
-  PlayArrowRounded as PlayIcon,
-} from "@mui/icons-material";
 import { useState, useRef, useEffect } from "react";
 import CachedAudioPlayer from "./cachedAudioPlayer";
 import CardComponent from "./cardComponent";
