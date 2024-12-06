@@ -14,6 +14,8 @@ import PlayList from "./playList";
 import { PlaySlider, PlayControls } from "./playControls";
 import MusicIdSelectPanel from "./musicIdSelectPanel";
 import { isCardPrefixValid } from "./musicIdSelectPanel";
+import GameSimulatorPanel from "./gameSimulatorPanel";
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 const constrainedWidth = {
   width: '100%',
@@ -154,6 +156,7 @@ function loadCookies(data, getDefaultValue = false) {
 
 export default function Page() {
 
+  const isSmallScreen = !useMediaQuery("(min-width:600px)");
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState(null);
   const [musicPlayerState, setMusicPlayerState] = useState({
@@ -182,6 +185,8 @@ export default function Page() {
   const audioRef = useRef(null);
   const audioCountdownRef = useRef(null);
   const [tabValue, setTabValue] = useState(0);
+  const tabValueRef = useRef(null);
+  const nextMusicCallback = useRef(null);
 
   const globalState = {
     musicPlayerState, setMusicPlayerState,
@@ -192,6 +197,10 @@ export default function Page() {
   const globalRefs = {
     audioRef, audioCountdownRef
   }
+
+  useEffect(() => {
+    tabValueRef.current = tabValue;
+  }, [tabValue])
 
   useEffect(() => {
     // set relative root
@@ -370,6 +379,9 @@ export default function Page() {
   const playNextMusic = (additionalToSet = {}) =>{
     let [_, nextCharacter] = findNextCharacterInPlaylist(musicPlayerState, musicPlayerState.currentPlaying)
     playMusicOfCharacter(nextCharacter, additionalToSet)
+    if (nextMusicCallback.current) {
+      nextMusicCallback.current();
+    }
   }
   
   const onNextMusicClick = () => {
@@ -434,24 +446,6 @@ export default function Page() {
     docCookies.setItem("currentPlaying", characters.indexOf(currentPlaying));
   }
 
-  const globalMethods = {
-    "reroll": reroll,
-    "setTemporarySkip": (character) => {
-      let newTemporarySkip = {...musicPlayerState.temporarySkip}
-      newTemporarySkip[character] = !newTemporarySkip[character];
-      setMusicPlayerState({
-        ...musicPlayerState,
-        temporarySkip: newTemporarySkip
-      })
-    },
-    "getMusicName": getMusicName,
-    "getMusicFilename": getMusicFilename,
-    "playMusicOfCharacter": playMusicOfCharacter,
-    "characterInPlaylist": characterInPlaylist,
-    "findNextCharacterInPlaylist": findNextCharacterInPlaylist,
-    "findPreviousCharacterInPlaylist": findPreviousCharacterInPlaylist,
-  }
-
   const onPauseMusicClick = () => {
     const playbackPaused = playbackState.playbackPaused;
     const paused = playbackState.paused;
@@ -471,11 +465,49 @@ export default function Page() {
     }
   }
 
+  const globalMethods = {
+    "reroll": reroll,
+    "setTemporarySkip": (character) => {
+      let newTemporarySkip = {...musicPlayerState.temporarySkip}
+      newTemporarySkip[character] = !newTemporarySkip[character];
+      setMusicPlayerState({
+        ...musicPlayerState,
+        temporarySkip: newTemporarySkip
+      })
+    },
+    "getMusicName": getMusicName,
+    "getMusicFilename": getMusicFilename,
+    "playMusicOfCharacter": playMusicOfCharacter,
+    "characterInPlaylist": characterInPlaylist,
+    "findNextCharacterInPlaylist": findNextCharacterInPlaylist,
+    "findPreviousCharacterInPlaylist": findPreviousCharacterInPlaylist,
+    "onNextMusicClick": onNextMusicClick,
+    "onPreviousMusicClick": onPreviousMusicClick,
+    "onPauseMusicClick": onPauseMusicClick,
+    "registerNextMusicCallback": (callback) => {
+      nextMusicCallback.current = callback;
+    }
+  }
+
   const memoizedMusicIdSelectPanel = useMemo(() => {
     return <MusicIdSelectPanel
       data={data} globalState={globalState} globalMethods={globalMethods}
     ></MusicIdSelectPanel>
   }, [data, globalState.musicPlayerState.musicIds, globalState.optionState.cardPrefix, globalMethods])
+  const [renderGameSimulatorPanel, setRenderGameSimulatorPanel] = useState(false);
+
+  useEffect(() => {
+    if (tabValue === 3) {
+      setRenderGameSimulatorPanel(true);
+    } 
+    // else {
+    //   setTimeout(() => {
+    //     if (tabValueRef.current !== null && tabValueRef.current !== 3) {
+    //       setRenderGameSimulatorPanel(false);
+    //     }
+    //   }, 1000);
+    // }
+  }, [tabValue])
 
   return <ThemeProvider theme={darkTheme}>
     {isLoading ? <div>Loading...</div> : <Box align="center" alignItems="center" justifyContent="center" sx={{width: "100%"}}>
@@ -489,6 +521,7 @@ export default function Page() {
           <Tab label="卡牌播放器" />
           <Tab label="列表播放器" />
           <Tab label="曲目与卡片设定" />
+          <Tab label="游戏模拟器" />
         </Tabs>
 
         <Box sx={{
@@ -540,8 +573,7 @@ export default function Page() {
                   sx={{
                     width: "clamp(150px, 30%, 240px)"
                   }}
-                  // min is 0, max is 180, step is 0.25
-                  inputProps={{min: 0, max: 180, step: 0.25}}
+                  inputProps={{min: 0.05, max: 10, step: 0.05}}
                 />
               </Stack>
             </BoxPaper>
@@ -568,6 +600,14 @@ export default function Page() {
           <TransitionTab index={2} value={tabValue}><BoxPaper>
             {memoizedMusicIdSelectPanel}
           </BoxPaper></TransitionTab>
+          <TransitionTab index={3} value={tabValue}>{renderGameSimulatorPanel && <Box width="100%">
+            {isSmallScreen ? <Paper width="100%" padding={2}><Box padding={2}><Typography>
+              Your screen is too small to display the game simulator. <br/>Please use a larger screen.
+            </Typography></Box></Paper> : <GameSimulatorPanel 
+              globalState={globalState} globalMethods={globalMethods}
+              data={data}
+            ></GameSimulatorPanel>}
+          </Box>}</TransitionTab>
         </Box>
 
 

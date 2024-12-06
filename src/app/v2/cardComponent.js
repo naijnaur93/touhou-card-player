@@ -5,6 +5,7 @@ import Paper from '@mui/material/Paper';
 import { useRef, useEffect, forwardRef } from "react";
 
 const CardComponent = forwardRef(({
+  children,
   src, 
   width = "10%",
   alt = "cardComponent",
@@ -13,6 +14,7 @@ const CardComponent = forwardRef(({
   paperProps = {},
   paperStyles = {},
   imageStyles = {},
+  noImage = false,
 }, ref) => {
 
   let imageRef = useRef(null);
@@ -53,7 +55,7 @@ const CardComponent = forwardRef(({
         justifyContent: "center",
         alignItems: "center",
       }}>
-        <img
+        {!noImage && <img
           src={src} 
           alt={alt}
           ref={imageRef}
@@ -68,8 +70,8 @@ const CardComponent = forwardRef(({
             ...imageStyles,
           }}
           draggable={false}
-          
-        />
+        />}
+        {children}
       </Box>
     </Paper>
   );
