@@ -9,6 +9,7 @@ import TransitionTab from "./transitionTab";
 import * as utils from "./utils";
 import { useTheme } from "@mui/material/styles";
 import { PlayControls, PlaySlider } from "./playControls";
+import { useSwipeable } from "react-swipeable";
 
 const transitionTime = 0.8;
 
@@ -16,7 +17,9 @@ const ProminentCardGroup = forwardRef(({
   data, character, isFocused,
   musicFilename,
   globalState,
-  empty = false
+  empty = false,
+  onSwipeLeft = () => {},
+  onSwipeRight = () => {},
 }, ref) => {
   let filenames = data["data"][character]["card"]
   if (typeof filenames === "string") {
@@ -27,6 +30,12 @@ const ProminentCardGroup = forwardRef(({
     return optionState.relativeRoot + optionState.cardPrefix + filename;
   });
   const [musicName, albumName] = utils.getMusicName(musicFilename);
+
+  const swipeableHandlers = useSwipeable({
+    onSwipedLeft: onSwipeLeft,
+    onSwipedRight: onSwipeRight,
+  });
+
   return <Box
     ref={ref}
     sx={{
@@ -35,6 +44,7 @@ const ProminentCardGroup = forwardRef(({
       flexShrink: 0,
       width: "clamp(0px, 100%, 720px)",
     }}
+    {...swipeableHandlers}
   >
     {!empty && <Stack direction="column" spacing={2} paddingTop={1}>
       <Stack direction="column" spacing={0}>
@@ -405,6 +415,14 @@ export default function MusicPlayerPanel({
           isFocused={character === currentCharacter}
           ref={counter === 0 ? prominentCardGroupFirstItemRef : null}
           empty={empty}
+          onSwipeLeft={() => {
+            console.log("Swipe left");
+            onNextClick();
+          }}
+          onSwipeRight={() => {
+            console.log("Swipe right");
+            onPreviousClick();
+          }}
         />
       </TransitionTab>)
       counter++;

@@ -64,8 +64,11 @@ const CardComponent = forwardRef(({
             left: 0,
             top: 0,
             objectFit: "cover",
+            userSelect: "none",
             ...imageStyles,
           }}
+          draggable={false}
+          
         />
       </Box>
     </Paper>
