@@ -1,4 +1,6 @@
 
+const relativeRoot = "./../"
+
 function getMusicName(musicFilename) {
   let musicName = musicFilename;
   let albumName = ""
@@ -59,5 +61,5 @@ function createWidthResponsiveStyle(small, trans, large) {
 }
 
 export {
-  getMusicName, getMusicFilename, createWidthResponsiveStyle
+  getMusicName, getMusicFilename, createWidthResponsiveStyle, relativeRoot
 }

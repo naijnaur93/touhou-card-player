@@ -16,7 +16,7 @@ import PlayList from "./playList";
 import { PlaySlider, PlayControls } from "./playControls";
 import MusicIdSelectPanel from "./musicIdSelectPanel";
 
-const relativeRoot = "./../"
+const relativeRoot = "../"
 const constrainedWidth = {
   width: '100%',
   '@media (min-width: 720px)': {
