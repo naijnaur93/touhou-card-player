@@ -345,6 +345,11 @@ export default function MusicPlayerPanel({
       duration: audioRef.current.duration,
     });
     audioRef.current.currentTime = position;
+    if (!paused) {
+      audioRef.current.play().catch((e) => {
+        console.log("Failed to play", e);
+      });
+    }
   }, globalRefs: globalRefs});
   prepareAudio(nextSource);
 

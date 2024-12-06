@@ -55,6 +55,15 @@ const cardStyleSet = [
   ],
 ]
 
+function isCardPrefixValid(prefix) {
+  for (let i = 0; i < cardStyleSet.length; i++) {
+    if (cardStyleSet[i][1] === prefix) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const recordMusicIdsCookie = (data, musicIds) => {
   let characters = Object.keys(data.data);
   let musicIdsList = [];
@@ -142,6 +151,7 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
               onChange={(event) => {
                 let optionState = globalState.optionState;
                 globalState.setOptionState({...optionState, cardPrefix: event.target.value});
+                docCookies.setItem("cardPrefix", event.target.value, Infinity);
               }}
               spacing={1}
             >
@@ -415,3 +425,4 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
 }
 
 export default MusicIdSelectPanel;
+export { isCardPrefixValid };

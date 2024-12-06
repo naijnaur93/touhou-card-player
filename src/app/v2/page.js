@@ -13,6 +13,7 @@ import { getMusicFilename, getMusicName } from "./utils";
 import PlayList from "./playList";
 import { PlaySlider, PlayControls } from "./playControls";
 import MusicIdSelectPanel from "./musicIdSelectPanel";
+import { isCardPrefixValid } from "./musicIdSelectPanel";
 
 const constrainedWidth = {
   width: '100%',
@@ -206,6 +207,27 @@ export default function Page() {
   }, [])
 
   useEffect(() => {
+
+    {
+      try {
+        let cookieCardPrefix = docCookies.getItem("cardPrefix");
+        if (cookieCardPrefix !== null) {
+          if (isCardPrefixValid(cookieCardPrefix)) {
+            setOptionState({
+              ...optionState,
+              cardPrefix: cookieCardPrefix
+            });
+          } else {
+            throw "Invalid card prefix";
+          }
+        }
+      } catch (e) {
+        console.error("Error loading cardPrefix from cookies", e);
+        docCookies.removeItem("cardPrefix");
+      }
+    }
+  
+
     if (!isLoading) return;
     fetch('data.json')
       .then(response => response.json())
@@ -252,7 +274,7 @@ export default function Page() {
 
         setIsLoading(false);
       })
-  })
+  }, [])
 
   const handleTabsChange = (event, newValue) => {
     setTabValue(newValue);
