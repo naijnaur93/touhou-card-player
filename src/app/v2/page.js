@@ -466,6 +466,7 @@ export default function Page() {
   }
 
   const globalMethods = {
+    "userPause": userPause,
     "reroll": reroll,
     "setTemporarySkip": (character) => {
       let newTemporarySkip = {...musicPlayerState.temporarySkip}
@@ -600,14 +601,15 @@ export default function Page() {
           <TransitionTab index={2} value={tabValue}><BoxPaper>
             {memoizedMusicIdSelectPanel}
           </BoxPaper></TransitionTab>
-          <TransitionTab index={3} value={tabValue}>{renderGameSimulatorPanel && <Box width="100%">
+          <TransitionTab index={3} value={tabValue}><Box width="100%">
             {isSmallScreen ? <Paper width="100%" padding={2}><Box padding={2}><Typography>
               Your screen is too small to display the game simulator. <br/>Please use a larger screen.
             </Typography></Box></Paper> : <GameSimulatorPanel 
+              renderContents={renderGameSimulatorPanel}
               globalState={globalState} globalMethods={globalMethods}
               data={data}
             ></GameSimulatorPanel>}
-          </Box>}</TransitionTab>
+          </Box></TransitionTab>
         </Box>
 
 

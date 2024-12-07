@@ -14,6 +14,7 @@ import {
   Refresh as RefreshIcon,
   PlayArrow as PlayIcon,
   Stop as StopIcon,
+  Loop as TraditionalIcon,
 } from "@mui/icons-material";
 import { PlayControls } from "./playControls";
 
@@ -28,7 +29,7 @@ function CardPlaceholder() {
   ></CardComponent>
 }
 
-const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
+const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }) => {
 
   let canvasRef = useRef(null);
 
@@ -62,6 +63,20 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
     timeAverage: 8,
     timeDeviation: 3,
     mistakeRate: 0.1,
+    traditionalMode: false,
+  });
+
+  const timeoutReadRef = useRef(null);
+
+  useEffect(() => {
+    timeoutReadRef.current = {
+      layoutInfo: layoutInfo,
+      deckInfo: deckInfo,
+      gameInfo: gameInfo,
+      roundInfo: roundInfo,
+      opponentSettings: opponentSettings,
+      globalState: globalState,
+    }
   });
 
   function setLayoutInfo(newLayoutInfo) {
@@ -135,11 +150,12 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
   const hasOpponent = layoutInfo.hasOpponent;
 
   const canvasMargin = 16;
-  const canvasSpacing = 8;
+  const canvasSpacing = 6;
   const cards = {};
   const cardAspectRatio = 703 / 1000;
   const cardSpacing = canvasSpacing;
   const clientWidth = canvasRef.current ? canvasRef.current.clientWidth : 0;
+  const canvasWidth = clientWidth;
   let cardWidth = 0;
   let deckLeft = 0;
   let deckWidthPixels = 0;
@@ -151,30 +167,60 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
   }
   const cardHeight = cardWidth / cardAspectRatio;
   const sliderHeight = 28;
-  const middlebandCardHeight = 0.8 * cardHeight;
+  const playControlsWidth = 209;
+  const playControlsHeight = 59;
+  let middlebandCardHeight = !gameStarted ? 0.8 * cardHeight : (playControlsHeight - canvasSpacing - sliderHeight) / 1.1;
+  if (middlebandCardHeight < 0) { middlebandCardHeight = 0; }
   let middlebandHeight = middlebandCardHeight * (1 + 0.1) + sliderHeight + canvasSpacing;
   if (gameStarted) {
-    middlebandHeight = 59;
+    middlebandHeight = playControlsHeight;
   }
-  const playControlsWidth = 209;
-  const opponentDeckTop = canvasMargin;
+  const opponentObtainedTop = canvasMargin;
+  const opponentDeckTop = !gameStarted ? canvasMargin : (opponentObtainedTop + cardHeight + canvasSpacing);
   const opponentDeckBottom = opponentDeckTop + (!hasOpponent ? 0 : cardHeight * layoutInfo.deckHeight + cardSpacing * (layoutInfo.deckHeight - 1));
   let middlebandTop = opponentDeckBottom + (!hasOpponent ? 0 : canvasSpacing);
   const playerDeckTop = middlebandTop + middlebandHeight + canvasSpacing;
   const playerDeckBottom = playerDeckTop + cardHeight * layoutInfo.deckHeight + cardSpacing * (layoutInfo.deckHeight - 1);
-  let canvasHeight = playerDeckBottom + canvasMargin;
+  const playerObtainedTop = playerDeckBottom + canvasSpacing;
+  let canvasHeight = !gameStarted ? playerDeckBottom + canvasMargin : playerObtainedTop + cardHeight + canvasMargin;
   const buttonSize = 24;
   if (!gameStarted) {
     canvasHeight += canvasSpacing + buttonSize;
   }
   const characterCount = Object.keys(data.data).length;
 
+  if (!renderContents) {
+    return <Box width="100%" padding={1}>
+      <Paper 
+        ref={canvasRef}
+        variant="outlined"
+        sx={{
+          width: "100%",
+          height: canvasHeight,
+          position: "relative",
+          overflow: "hidden",
+          transition: "height 0.5s",
+        }}
+      >
+        Placeholder text
+      </Paper>
+    </Box>
+  }
+
+  const characterExists = (character) => {
+    if (character === null) return false;
+    return globalState.musicPlayerState.musicIds[character] !== -1;
+  }
+
+  let playerDeckFilled = deckInfo.playerDeck.map((deckCard) => deckCard !== null && characterExists(deckCard[0]));
+  let opponentDeckFilled = deckInfo.opponentDeck.map((deckCard) => deckCard !== null && characterExists(deckCard[0]));
+  
   // calculate card positioning and size infos
   let cardRenderInfos = {};
   let cardPlaceholderInfos = [];
-  
+
   Object.entries(data.data).forEach(([character, characterData]) => {
-    if (globalState.musicPlayerState.musicIds[character] === -1) {return;}
+    if (!characterExists(character)) {return;}
     let filenames = characterData["card"]
     if (typeof filenames === "string") {
       filenames = [filenames];
@@ -202,6 +248,7 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
         backgroundColor: "white",
         grayscale: false,
         assigned: false,
+        inDeck: false,
       }
       characterCardInfos.push(cardRenderInfo);
     });
@@ -211,22 +258,20 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
   deckInfo.playerDeck.forEach((deckCard, index) => {
     const left = deckLeft + (index % layoutInfo.deckWidth) * (cardWidth + cardSpacing);
     const top = playerDeckTop + Math.floor(index / layoutInfo.deckWidth) * (cardHeight + cardSpacing);
-    if (deckCard == null) {
+    if (deckCard == null || !characterExists(deckCard[0])) {
       cardPlaceholderInfos.push({
         key: "placeholder" + cardPlaceholderInfos.length,
         left, top, width: cardWidth, height: cardHeight,
       })
     } else {
       const [character, cardIndex] = deckCard;
+      if (!characterExists(character)) {return;}
       const cardRenderInfo = cardRenderInfos[character][cardIndex];
+      cardRenderInfo.inDeck = true;
       cardRenderInfo.left = left;
       cardRenderInfo.top = top;
       cardRenderInfo.width = cardWidth;
-      cardRenderInfo.zIndex = 1; // for those with the same character but not same cardIndex, zIndex = 0 so that it is hidden
       cardRenderInfo.assigned = true;
-      cardRenderInfo.paperStyles["&:hover"] = {
-        backgroundColor: "lightcyan",
-      }
       cardRenderInfos[character].forEach((otherCard) => {
         if (otherCard.cardIndex !== cardIndex) {
           otherCard.left = left;
@@ -252,23 +297,21 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
     deckInfo.opponentDeck.forEach((deckCard, index) => {
       const left = deckLeft + (index % layoutInfo.deckWidth) * (cardWidth + cardSpacing);
       const top = opponentDeckTop + Math.floor(index / layoutInfo.deckWidth) * (cardHeight + cardSpacing);
-      if (deckCard == null) {
+      if (deckCard == null || !characterExists(deckCard[0])) {
         cardPlaceholderInfos.push({
           key: "placeholder" + cardPlaceholderInfos.length,
           left, top, width: cardWidth, height: cardHeight,
         })
       } else {
         const [character, cardIndex] = deckCard;
+        if (!characterExists(character)) {return;}
         const cardRenderInfo = cardRenderInfos[character][cardIndex];
+        cardRenderInfo.inDeck = true;
         cardRenderInfo.left = left;
         cardRenderInfo.top = top;
         cardRenderInfo.width = cardWidth;
         cardRenderInfo.reversed = true;
-        cardRenderInfo.zIndex = 1;
         cardRenderInfo.assigned = true;
-        cardRenderInfo.paperStyles["&:hover"] = {
-          backgroundColor: "lightcyan",
-        }
         cardRenderInfos[character].forEach((otherCard) => {
           if (otherCard.cardIndex !== cardIndex) {
             otherCard.left = left;
@@ -291,6 +334,17 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
       }
     });
   }
+  
+  // for those in deck
+  Object.entries(cardRenderInfos).forEach(([character, characterCardInfos]) => {
+    characterCardInfos.forEach((cardRenderInfo) => {
+      if (!cardRenderInfo.inDeck) {return;}
+      cardRenderInfo.paperStyles["&:hover"] = {
+        backgroundColor: "lightcyan",
+      }
+      cardRenderInfo.zIndex = 1; // for those with the same character but not same cardIndex, zIndex = 0 so that it is hidden
+    });
+  });
 
   // for those not assigned
   if (!gameStarted) { // the cards are placed in the middleband to be selected
@@ -298,7 +352,7 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
     const cardHeight = middlebandCardHeight;
     const cardWidth = cardHeight * cardAspectRatio;
     const cardOverlap = cardWidth * 0.15;
-    const canSelectMoreCards = deckInfo.playerDeck.includes(null) || (layoutInfo.hasOpponent && deckInfo.opponentDeck.includes(null));
+    const canSelectMoreCards = playerDeckFilled.includes(false) || (layoutInfo.hasOpponent && opponentDeckFilled.includes(false));
     Object.entries(cardRenderInfos).forEach(([character, characterCardInfos]) => {
       characterCardInfos.forEach((cardRenderInfo) => {
         if (!cardRenderInfo.assigned) {
@@ -307,7 +361,7 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
           cardRenderInfo.width = cardWidth;
           if (canSelectMoreCards) {cardRenderInfo.props["onClick"] = () => {
             // if playerDeck has null value, assign the card to it; or if opponentDeck has null value, assign the card to it
-            let index = deckInfo.playerDeck.indexOf(null);
+            let index = playerDeckFilled.indexOf(false);
             if (index >= 0) {
               let newPlayerDeck = deckInfo.playerDeck.slice();
               newPlayerDeck[index] = [character, cardRenderInfo.cardIndex];
@@ -316,7 +370,7 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
                 playerDeck: newPlayerDeck,
               });
             } else if (layoutInfo.hasOpponent) {
-              let index = deckInfo.opponentDeck.indexOf(null);
+              let index = opponentDeckFilled.indexOf(false);
               if (index >= 0) {
                 let newOpponentDeck = deckInfo.opponentDeck.slice();
                 newOpponentDeck[index] = [character, cardRenderInfo.cardIndex];
@@ -366,6 +420,8 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
         if (!cardRenderInfo.assigned) {
           cardRenderInfo.top = opponentDeckBottom + (hasOpponent ? canvasSpacing : 0) + cardHeight * 0.1;  
           cardRenderInfo.width = cardWidth;
+          cardRenderInfo.backgroundColor = "lightgray";
+          cardRenderInfo.grayscale = true;
           counter++;
         }
       });
@@ -386,14 +442,14 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
 
   // for the slider
   let slider = null;
-  if (!gameStarted) {
+  {
     const sliderTop = middlebandTop + middlebandCardHeight * 1.1 + canvasSpacing;
     slider = <Slider 
       key="slider"
       size="small" sx={{
         width: deckWidthPixels - 20,
         top: sliderTop,
-        left: deckLeft + 10,
+        left: !gameStarted ? deckLeft + 10 : (20 - canvasSpacing - deckWidthPixels),
         position: "absolute",
         transition: "top 0.5s, left 0.5s, width 0.5s",
       }}
@@ -443,7 +499,7 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
           elevation={3}
           paperStyles={{
             backgroundColor: cardInfo.backgroundColor,
-            transition: "background-color 0.5s, transform 0.5s",
+            transition: "transform 0.5s",
             ...cardInfo.paperStyles,
           }}
           imageStyles={{
@@ -498,7 +554,7 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
     </Box>
   }
 
-  function createText(key, text, x, y, hidden=false, positionedWithRight=false) {
+  function createText(key, text, x, y, hidden=false, positionedWithRight=false, sx={}) {
     let w = 0;
     if (canvasRef.current) {
       w = canvasRef.current.clientWidth;
@@ -513,6 +569,7 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
         top: y,
         color: hidden ? "transparent" : "white",
         transition: "color 0.5s, top 0.5s, right 0.5s, left 0.5s",
+        ...sx,
       }}
     >
       {text}
@@ -547,17 +604,140 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
 
   const opponentEnabledButtonLeft = deckLeft - buttonSize - canvasSpacing;
   const opponentEnabledButtonTop = hasOpponent ? opponentDeckBottom - buttonSize : playerDeckTop
-  const opponentDeckSelectedCount = deckInfo.opponentDeck.filter((card) => card !== null).length;
-  const opponentDeckFilled = opponentDeckSelectedCount === deckInfo.opponentDeck.length;
-  const opponentDeckEmpty = opponentDeckSelectedCount === 0;
-  const playerDeckSelectedCount = deckInfo.playerDeck.filter((card) => card !== null).length;
-  const playerDeckFilled = playerDeckSelectedCount === deckInfo.playerDeck.length;
-  const playerDeckEmpty = playerDeckSelectedCount === 0;
+  const opponentDeckFilledCount = opponentDeckFilled.filter((value) => value).length;
+  const opponentDeckFull = opponentDeckFilledCount === deckInfo.opponentDeck.length;
+  const opponentDeckEmpty = opponentDeckFilledCount === 0;
+  const playerDeckFilledCount = playerDeckFilled.filter((value) => value).length;
+  const playerDeckFull = playerDeckFilledCount === deckInfo.playerDeck.length;
+  const playerDeckEmpty = playerDeckFilledCount === 0;
+
+  function resetRoundInfo() {
+    setRoundInfo({
+      opponentTimeoutSet: false,
+      opponentTimeout: null,
+      opponentMistaken: [],
+      playerMistaken: [],
+      foundBy: 0, // 1: player, 2: opponent
+    });
+  }
+
+  function randomizeOpponentClickTime() {
+    const timeAverage = opponentSettings.timeAverage;
+    const timeDeviation = opponentSettings.timeDeviation;
+    return (timeAverage + Math.random() * timeDeviation * 2 - timeDeviation) * 1000; // ms
+  }
+
+  function simulateOpponentClick() {
+    if (!hasOpponent || !gameStarted) return;
+    if (!timeoutReadRef.current) return;
+    const { layoutInfo, deckInfo, gameInfo, roundInfo, opponentSettings, globalState } = timeoutReadRef.current;
+    if (roundInfo.foundBy === 1) {
+      console.log("Opponent click: Player has already taken it.");
+      return;
+    }
+    if (roundInfo.foundBy === 2) {
+      console.log("Opponent click: Opponent has already taken it. Maybe some bug?");
+      return;
+    }
+    let mistakeRate = opponentSettings.mistakeRate;
+    {
+      const cardsOnDeck = playerDeckFilledCount + opponentDeckFilledCount;
+      const totalSlotsOnDeck = layoutInfo.deckWidth * layoutInfo.deckHeight * 2;
+      mistakeRate *= cardsOnDeck / totalSlotsOnDeck;
+    }
+    const mistakeDiceRoll = Math.random();
+    let currentCharacter = globalState.musicPlayerState.currentPlaying;
+    let opponentCorrect = true;
+    if (mistakeDiceRoll < mistakeRate) {
+      let possibleMistakenCharacters = [];
+      deckInfo.playerDeck.forEach((deckCard) => {
+        if (deckCard && characterExists(deckCard[0]) && deckCard[0] !== currentCharacter) {
+          possibleMistakenCharacters.push(deckCard[0]);
+        }
+      });
+      deckInfo.opponentDeck.forEach((deckCard) => {
+        if (deckCard && characterExists(deckCard[0]) && deckCard[0] !== currentCharacter) {
+          possibleMistakenCharacters.push(deckCard[0]);
+        }
+      });
+      if (possibleMistakenCharacters.length > 0) {
+        opponentCorrect = false;
+        const mistakenCharacterDiceRoll = Math.floor(Math.random() * possibleMistakenCharacters.length);
+        const mistakenCharacter = possibleMistakenCharacters[mistakenCharacterDiceRoll];
+        // add to opponent mistaken
+        let newOpponentMistaken = roundInfo.opponentMistaken.slice();
+        newOpponentMistaken.push(mistakenCharacter);
+        setRoundInfo({
+          ...roundInfo,
+          opponentTimeout: null,
+          opponentMistaken: newOpponentMistaken,
+        });
+      }
+    }
+    if (opponentCorrect) {
+      let found = false;
+      deckInfo.playerDeck.forEach((deckCard) => {
+        if (deckCard && deckCard[0] === currentCharacter) {
+          found = true;
+        }
+      });
+      deckInfo.opponentDeck.forEach((deckCard) => {
+        if (deckCard && deckCard[0] === currentCharacter) {
+          found = true;
+        }
+      });
+      if (found) {
+        console.log("Opponent click: Correct!");
+        setRoundInfo({
+          ...roundInfo,
+          opponentTimeout: null,
+          foundBy: 2,
+        });
+      } else {
+        console.log("Opponent click: No correct card found.");
+        setRoundInfo({
+          ...roundInfo,
+          opponentTimeout: null,
+        });
+      }
+    }
+  }
+
+  function settleRound() {
+
+  }
+
+  function newRound() {
+    // if opponentTimeout is set, clear it
+    if (roundInfo.opponentTimeoutSet) {
+      clearTimeout(roundInfo.opponentTimeout);
+    }
+    let opponentTimeout = null;
+    if (hasOpponent) {
+      const clickTime = randomizeOpponentClickTime();
+      opponentTimeout = setTimeout(simulateOpponentClick, clickTime);
+    }
+    setRoundInfo({
+      opponentTimeoutSet: true,
+      opponentTimeout: opponentTimeout,
+      opponentMistaken: [],
+      playerMistaken: [],
+      foundBy: 0,
+    });
+  }
 
   const nextMusicCallback = () => {
-    console.log("nextMusicCallback");
     if (!gameStarted) return;
+    newRound();
   };
+
+  const startGame = () => {
+    globalMethods.reroll(true);
+    setGameInfo({
+      gameStarted: true,
+    });
+    resetRoundInfo();
+  }
 
   globalMethods.registerNextMusicCallback(nextMusicCallback);
 
@@ -575,6 +755,9 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
     >
       {renderedCards}
       {slider}
+
+      {/* Buttons */}
+
       {createButton("deckSmallerButton",
         <DeckSmallerIcon sx={{fontSize: "1em"}}></DeckSmallerIcon>, 
         deckLeft + deckWidthPixels + canvasSpacing, playerDeckTop,
@@ -603,66 +786,72 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
         deckLeft + deckWidthPixels + canvasSpacing, playerDeckTop + buttonSize + canvasSpacing,
         gameStarted, false
       )}
-      {!gameStarted && createButton("increaseDeckWidthButton",
+      {createButton("increaseDeckWidthButton",
         <AddIcon sx={{fontSize: "1em"}}></AddIcon>, 
-        deckLeft + deckWidthPixels + canvasSpacing, playerDeckBottom - buttonSize,
+        !gameStarted ? (deckLeft + deckWidthPixels + canvasSpacing) : (canvasWidth + canvasSpacing),
+        playerDeckBottom - buttonSize,
         () => {
           setLayoutInfo({
             ...layoutInfo,
             deckWidth: layoutInfo.deckWidth + 1
           });
         },
-        layoutInfo.deckWidth >= 15
+        gameStarted || layoutInfo.deckWidth >= 15
       )}
-      {!gameStarted && createButton("decreaseDeckWidthButton",
+      {createButton("decreaseDeckWidthButton",
         <RemoveIcon sx={{fontSize: "1em"}}></RemoveIcon>, 
-        deckLeft + deckWidthPixels + canvasSpacing, playerDeckBottom - buttonSize * 2 - canvasSpacing,
+        !gameStarted ? (deckLeft + deckWidthPixels + canvasSpacing) : (canvasWidth + canvasSpacing),
+        playerDeckBottom - buttonSize * 2 - canvasSpacing,
         () => {
           setLayoutInfo({
             ...layoutInfo,
             deckWidth: layoutInfo.deckWidth - 1
           });
         },
-        layoutInfo.deckWidth <= 1,
+        gameStarted || (layoutInfo.deckWidth <= 1),
         "warning"
       )}
-      {!gameStarted && createButton("increaseDeckHeightButton",
+      {createButton("increaseDeckHeightButton",
         <AddIcon sx={{fontSize: "1em"}}></AddIcon>, 
-        deckLeft + deckWidthPixels - buttonSize, playerDeckBottom + canvasSpacing,
+        deckLeft + deckWidthPixels - buttonSize, 
+        !gameStarted ? (playerDeckBottom + canvasSpacing) : (canvasHeight + canvasSpacing),
         () => {
           setLayoutInfo({
             ...layoutInfo,
             deckHeight: layoutInfo.deckHeight + 1
           });
         },
-        layoutInfo.deckHeight >= 5
+        gameStarted || layoutInfo.deckHeight >= 5
       )}
-      {!gameStarted && createButton("decreaseDeckHeightButton",
+      {createButton("decreaseDeckHeightButton",
         <RemoveIcon sx={{fontSize: "1em"}}></RemoveIcon>, 
-        deckLeft + deckWidthPixels - buttonSize * 2 - canvasSpacing, playerDeckBottom + canvasSpacing,
+        deckLeft + deckWidthPixels - buttonSize * 2 - canvasSpacing, 
+        !gameStarted ? (playerDeckBottom + canvasSpacing) : (canvasHeight + canvasSpacing),
         () => {
           setLayoutInfo({
             ...layoutInfo,
             deckHeight: layoutInfo.deckHeight - 1
           });
         },
-        layoutInfo.deckHeight <= 1,
+        gameStarted || layoutInfo.deckHeight <= 1,
         "warning"
       )}
-      {!gameStarted && createText("deckCardNumberText", 
+      {createText("deckCardNumberText", 
         "卡牌数量", 
-        deckLeft + deckWidthPixels + canvasSpacing, playerDeckBottom + canvasSpacing,
-        gameStarted, false
+        deckLeft + deckWidthPixels + canvasSpacing, 
+        !gameStarted ? (playerDeckBottom + canvasSpacing) : (canvasHeight + canvasSpacing),
+        false, false
       )}
-      {!gameStarted && createButton("randomFillOpponentDeck",
+      {createButton("randomFillOpponentDeck",
         <ShuffleIcon sx={{fontSize: "1em"}}></ShuffleIcon>,
-        opponentEnabledButtonLeft, hasOpponent ? (opponentDeckBottom - buttonSize * 2 - canvasSpacing) : opponentEnabledButtonTop,
+        !gameStarted ? opponentEnabledButtonLeft : (-canvasSpacing - buttonSize), 
+        hasOpponent ? (opponentDeckBottom - buttonSize * 2 - canvasSpacing) : opponentEnabledButtonTop,
         () => {
           let selectableCharacters = getSelectableCharacters();
           let newOpponentDeck = deckInfo.opponentDeck.slice();
           for (let i = 0; i < newOpponentDeck.length; i++) {
             if (selectableCharacters.length === 0) { break; }
-            if (newOpponentDeck[i] === null) {
+            if (newOpponentDeck[i] === null || !characterExists(newOpponentDeck[i][0])) {
               const randomIndex = Math.floor(Math.random() * selectableCharacters.length);
               const randomCharacter = selectableCharacters[randomIndex];
               const cardList = data.data[randomCharacter]["card"];
@@ -680,16 +869,18 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
             opponentDeck: newOpponentDeck,
           });
         },
-        !hasOpponent || opponentDeckFilled, "primary", true
+        gameStarted || !hasOpponent || opponentDeckFull, "primary", true
       )}
-      {!gameStarted && createText("randomFillOpponentText", 
+      {createText("randomFillOpponentText", 
         "随机", 
-        opponentEnabledButtonLeft - canvasSpacing, hasOpponent ? (opponentDeckBottom - buttonSize * 2 - canvasSpacing) : opponentEnabledButtonTop,
+        !gameStarted ? (opponentEnabledButtonLeft - canvasSpacing) : (-canvasSpacing * 2 - buttonSize), 
+        hasOpponent ? (opponentDeckBottom - buttonSize * 2 - canvasSpacing) : opponentEnabledButtonTop,
         !hasOpponent, true
       )}
-      {!gameStarted && createButton("clearOpponentDeck",
+      {createButton("clearOpponentDeck",
         <ClearIcon sx={{fontSize: "1em"}}></ClearIcon>,
-        opponentEnabledButtonLeft, hasOpponent ? (opponentDeckBottom - buttonSize * 3 - canvasSpacing * 2) : opponentEnabledButtonTop,
+        !gameStarted ? opponentEnabledButtonLeft : (-canvasSpacing - buttonSize), 
+        hasOpponent ? (opponentDeckBottom - buttonSize * 3 - canvasSpacing * 2) : opponentEnabledButtonTop,
         () => {
           let newOpponentDeck = Array(layoutInfo.deckWidth * layoutInfo.deckHeight).fill(null);
           setDeckInfo({
@@ -697,16 +888,18 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
             opponentDeck: newOpponentDeck,
           });
         },
-        !hasOpponent || opponentDeckEmpty, "error", true
+        gameStarted || !hasOpponent || opponentDeckEmpty, "error", true
       )}
-      {!gameStarted && createText("clearFillOpponentText", 
+      {createText("clearFillOpponentText", 
         "清空", 
-        opponentEnabledButtonLeft - canvasSpacing, hasOpponent ? (opponentDeckBottom - buttonSize * 3 - canvasSpacing * 2) : opponentEnabledButtonTop,
+        !gameStarted ? (opponentEnabledButtonLeft - canvasSpacing) : (-canvasSpacing * 2 - buttonSize), 
+        hasOpponent ? (opponentDeckBottom - buttonSize * 3 - canvasSpacing * 2) : opponentEnabledButtonTop,
         !hasOpponent, true
       )}
-      {!gameStarted && createButton("shuffleOpponentDeck",
+      {createButton("shuffleOpponentDeck",
         <RefreshIcon sx={{fontSize: "1em"}}></RefreshIcon>,
-        opponentEnabledButtonLeft, hasOpponent ? (opponentDeckBottom - buttonSize * 4 - canvasSpacing * 3) : opponentEnabledButtonTop,
+        !gameStarted ? opponentEnabledButtonLeft : (-canvasSpacing - buttonSize), 
+        hasOpponent ? (opponentDeckBottom - buttonSize * 4 - canvasSpacing * 3) : opponentEnabledButtonTop,
         () => {
           let newOpponentDeck = deckInfo.opponentDeck.slice();
           for (let i = newOpponentDeck.length - 1; i > 0; i--) {
@@ -718,22 +911,24 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
             opponentDeck: newOpponentDeck,
           });
         },
-        !hasOpponent || opponentDeckEmpty, "warning", true
+        gameStarted || !hasOpponent || opponentDeckEmpty, "warning", true
       )}
-      {!gameStarted && createText("shuffleOpponentText", 
+      {createText("shuffleOpponentText", 
         "乱序", 
-        opponentEnabledButtonLeft - canvasSpacing, hasOpponent ? (opponentDeckBottom - buttonSize * 4 - canvasSpacing * 3) : opponentEnabledButtonTop,
+        !gameStarted ? (opponentEnabledButtonLeft - canvasSpacing) : (-canvasSpacing * 2 - buttonSize), 
+        hasOpponent ? (opponentDeckBottom - buttonSize * 4 - canvasSpacing * 3) : opponentEnabledButtonTop,
         !hasOpponent, true
       )}
-      {!gameStarted && createButton("randomFillPlayerDeck",
+      {createButton("randomFillPlayerDeck",
         <ShuffleIcon sx={{fontSize: "1em"}}></ShuffleIcon>,
-        opponentEnabledButtonLeft, playerDeckTop + (hasOpponent ? 0 : canvasSpacing + buttonSize),
+        !gameStarted ? opponentEnabledButtonLeft : (-canvasSpacing - buttonSize), 
+        playerDeckTop + (hasOpponent ? 0 : canvasSpacing + buttonSize),
         () => {
           let selectableCharacters = getSelectableCharacters();
           let newPlayerDeck = deckInfo.playerDeck.slice();
           for (let i = 0; i < newPlayerDeck.length; i++) {
             if (selectableCharacters.length === 0) { break; }
-            if (newPlayerDeck[i] === null) {
+            if (newPlayerDeck[i] === null || !characterExists(newPlayerDeck[i][0])) {
               const randomIndex = Math.floor(Math.random() * selectableCharacters.length);
               const randomCharacter = selectableCharacters[randomIndex];
               const cardList = data.data[randomCharacter]["card"];
@@ -751,16 +946,18 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
             playerDeck: newPlayerDeck,
           });
         },
-        playerDeckFilled, "primary"
+        gameStarted || playerDeckFull, "primary"
       )}
-      {!gameStarted && createText("randomFillPlayerText", 
+      {createText("randomFillPlayerText", 
         "随机", 
-        opponentEnabledButtonLeft - canvasSpacing, playerDeckTop + (hasOpponent ? 0 : canvasSpacing + buttonSize),
+        !gameStarted ? (opponentEnabledButtonLeft - canvasSpacing) : (-canvasSpacing * 2 - buttonSize), 
+        playerDeckTop + (hasOpponent ? 0 : canvasSpacing + buttonSize),
         false, true
       )}
-      {!gameStarted && createButton("clearPlayerDeck",
+      {createButton("clearPlayerDeck",
         <ClearIcon sx={{fontSize: "1em"}}></ClearIcon>,
-        opponentEnabledButtonLeft, playerDeckTop + buttonSize + canvasSpacing + (hasOpponent ? 0 : canvasSpacing + buttonSize),
+        !gameStarted ? opponentEnabledButtonLeft : (-canvasSpacing - buttonSize), 
+        playerDeckTop + buttonSize + canvasSpacing + (hasOpponent ? 0 : canvasSpacing + buttonSize),
         () => {
           let newPlayerDeck = Array(layoutInfo.deckWidth * layoutInfo.deckHeight).fill(null);
           setDeckInfo({
@@ -768,16 +965,18 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
             playerDeck: newPlayerDeck,
           });
         },
-        playerDeckEmpty, "error"
+        gameStarted || playerDeckEmpty, "error"
       )}
-      {!gameStarted && createText("clearFillPlayerText", 
+      {createText("clearFillPlayerText", 
         "清空", 
-        opponentEnabledButtonLeft - canvasSpacing, playerDeckTop + buttonSize + canvasSpacing + (hasOpponent ? 0 : canvasSpacing + buttonSize),
+        !gameStarted ? (opponentEnabledButtonLeft - canvasSpacing) : (-canvasSpacing * 2 - buttonSize), 
+        playerDeckTop + buttonSize + canvasSpacing + (hasOpponent ? 0 : canvasSpacing + buttonSize),
         false, true
       )}
-      {!gameStarted && createButton("shufflePlayerDeck",
+      {createButton("shufflePlayerDeck",
         <RefreshIcon sx={{fontSize: "1em"}}></RefreshIcon>,
-        opponentEnabledButtonLeft, playerDeckTop + buttonSize * 2 + canvasSpacing * 2 + (hasOpponent ? 0 : canvasSpacing + buttonSize),
+        !gameStarted ? opponentEnabledButtonLeft : (-canvasSpacing - buttonSize), 
+        playerDeckTop + buttonSize * 2 + canvasSpacing * 2 + (hasOpponent ? 0 : canvasSpacing + buttonSize),
         () => {
           let newPlayerDeck = deckInfo.playerDeck.slice();
           for (let i = newPlayerDeck.length - 1; i > 0; i--) {
@@ -789,45 +988,47 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
             playerDeck: newPlayerDeck,
           });
         },
-        playerDeckEmpty, "warning", true
+        gameStarted || playerDeckEmpty, "warning", true
       )}
-      {!gameStarted && createText("shufflePlayerText", 
+      {createText("shufflePlayerText", 
         "乱序", 
-        opponentEnabledButtonLeft - canvasSpacing, playerDeckTop + buttonSize * 2 + canvasSpacing * 2 + (hasOpponent ? 0 : canvasSpacing + buttonSize),
+        !gameStarted ? (opponentEnabledButtonLeft - canvasSpacing) : (-canvasSpacing * 2 - buttonSize), 
+        playerDeckTop + buttonSize * 2 + canvasSpacing * 2 + (hasOpponent ? 0 : canvasSpacing + buttonSize),
         false, true
       )}
       {createButton("startGame",
         !gameStarted ? <PlayIcon sx={{fontSize: "1em"}}></PlayIcon> : <StopIcon sx={{fontSize: "1em"}}></StopIcon>,
-        opponentEnabledButtonLeft, gameStarted ? playerDeckTop : playerDeckTop - buttonSize - canvasSpacing - 2,
+        opponentEnabledButtonLeft, 
+        gameStarted ? playerDeckTop : playerDeckTop + buttonSize * 3 + canvasSpacing * 3 + (!hasOpponent ? (canvasSpacing + buttonSize) : 0),
         () => {
+          globalMethods.userPause();
           if (!gameStarted) {
-            globalMethods.reroll(true);
-            setGameInfo({
-              gameStarted: true,
-            });
+            startGame();
           } else {
             setGameInfo({
               gameStarted: false,
             });
           }
         },
-        (!gameStarted) ? (!(playerDeckFilled && (!hasOpponent || opponentDeckFilled))) : (false), !gameStarted ? "success" : "error"
+        (!gameStarted) ? (!(playerDeckFull && (!hasOpponent || opponentDeckFull))) : (false), !gameStarted ? "success" : "error"
       )}
       {createText("playButtonText", 
         !gameStarted ? "开始游戏" : "结束游戏", 
-        opponentEnabledButtonLeft - canvasSpacing, gameStarted ? playerDeckTop : playerDeckTop - buttonSize - canvasSpacing - 2,
-        false, true
+        opponentEnabledButtonLeft - canvasSpacing, 
+        gameStarted ? playerDeckTop : playerDeckTop + buttonSize * 3 + canvasSpacing * 3 + (!hasOpponent ? (canvasSpacing + buttonSize) : 0),
+        gameStarted, true
       )}
-      {!gameStarted && <Box
+      {<Box
         key="opponentEnabledButton"
         sx={{
           ...iconButtonProperties.boxStyle,
-          left: opponentEnabledButtonLeft,
+          left: !gameStarted ? opponentEnabledButtonLeft : (-canvasSpacing - buttonSize), 
           top: opponentEnabledButtonTop,
           "&:hover": null,
           backgroundColor: layoutInfo.hasOpponent ? "primary.main" : "black",
         }}
         onClick={() => {
+          if (gameStarted) {return;}
           setLayoutInfo({
             ...layoutInfo,
             hasOpponent: !layoutInfo.hasOpponent
@@ -839,21 +1040,23 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
           fontSize: "1em"
         }}></OpponentIcon>
       </Box>}
-      {!gameStarted && createText("opponentEnabledText", 
+      {createText("opponentEnabledText", 
         "对手", 
-        opponentEnabledButtonLeft - canvasSpacing, opponentEnabledButtonTop,
+        !gameStarted ? (opponentEnabledButtonLeft - canvasSpacing) : (-canvasSpacing * 2 - buttonSize), 
+        opponentEnabledButtonTop,
         false, true
       )}
-      {!gameStarted && <TextField sx={{
+      {<TextField sx={{
           ...textfieldStyles,
-          left: deckLeft + deckWidthPixels + canvasSpacing,
-          top: hasOpponent ? opponentDeckTop : -textfieldHeight,
+          left: (gameStarted || !hasOpponent) ? canvasWidth + canvasSpacing : deckLeft + deckWidthPixels + canvasSpacing,
+          top: opponentDeckTop,
         }}
         key="timeAverageTextField"
         size="small"
         label="平均反应时间"
         className="chinese"
         inputProps={{min: 1, max: 20, step: 0.5}}
+        disabled={gameStarted}
         type="number"
         value={opponentSettings.timeAverage}
         onChange={(e) => {
@@ -864,10 +1067,10 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
         }}
       >
       </TextField>}
-      {!gameStarted && <TextField sx={{
+      {<TextField sx={{
           ...textfieldStyles,
-          left: deckLeft + deckWidthPixels + canvasSpacing,
-          top: hasOpponent ? (opponentDeckTop + textfieldHeight + canvasSpacing) : -textfieldHeight,
+          left: (gameStarted || !hasOpponent) ? canvasWidth + canvasSpacing : deckLeft + deckWidthPixels + canvasSpacing,
+          top: opponentDeckTop + textfieldHeight + canvasSpacing,
         }}
         size="small"
         label="时间波动"
@@ -875,6 +1078,7 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
         type="number"
         value={opponentSettings.timeDeviation}
         inputProps={{min: 0, max: 10, step: 0.5}}
+        disabled={gameStarted}
         onChange={(e) => {
           setOpponentSettings({
             ...opponentSettings,
@@ -883,10 +1087,10 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
         }}
       >
       </TextField>}
-      {!gameStarted && <TextField sx={{
+      {<TextField sx={{
           ...textfieldStyles,
-          left: deckLeft + deckWidthPixels + canvasSpacing,
-          top: hasOpponent ? (opponentDeckTop + textfieldHeight * 2 + canvasSpacing * 2) : -textfieldHeight,
+          left: (gameStarted || !hasOpponent) ? canvasWidth + canvasSpacing : deckLeft + deckWidthPixels + canvasSpacing,
+          top: opponentDeckTop + textfieldHeight * 2 + canvasSpacing * 2,
         }}
         size="small"
         label="犯错概率"
@@ -894,6 +1098,7 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
         type="number"
         value={opponentSettings.mistakeRate}
         inputProps={{min: 0, max: 1, step: 0.1}}
+        disabled={gameStarted}
         onChange={(e) => {
           setOpponentSettings({
             ...opponentSettings,
@@ -902,16 +1107,69 @@ const GameSimulatorPanel = ({ data, globalState, globalMethods }) => {
         }}
       >
       </TextField>}
-      {gameStarted && <Box sx={{
+      
+      {<Box
+        key="traditionalModeButton"
+        sx={{
+          ...iconButtonProperties.boxStyle,
+          left: (gameStarted || !hasOpponent) ? canvasWidth + canvasSpacing : deckLeft + deckWidthPixels + canvasSpacing,
+          top: opponentDeckTop + textfieldHeight * 3 + canvasSpacing * 3,
+          "&:hover": null,
+          backgroundColor: !opponentSettings.traditionalMode ? "primary.main" : "black",
+        }}
+        onClick={() => {
+          if (gameStarted) {return;}
+          setOpponentSettings({
+            ...opponentSettings,
+            traditionalMode: !opponentSettings.traditionalMode
+          });
+        }}
+      >
+        <TraditionalIcon sx={{
+          color: !opponentSettings.traditionalMode ? "black" : "primary.main",
+          fontSize: "1em"
+        }}></TraditionalIcon>
+      </Box>}
+      {createText("traditionalModeText", 
+        (!opponentSettings.traditionalMode) ? "自由模式" : "传统模式", 
+        ((gameStarted || !hasOpponent) ? canvasWidth + canvasSpacing : deckLeft + deckWidthPixels + canvasSpacing) + buttonSize + canvasSpacing,
+        opponentDeckTop + textfieldHeight * 3 + canvasSpacing * 3,
+        false, false, {
+          width: canvasWidth - (deckLeft + deckWidthPixels + canvasSpacing + canvasMargin),
+          textAlign: "left",
+        }
+      )}
+      {createText("traditionalModeDescriptionText", 
+        ((!opponentSettings.traditionalMode)
+          ? "卡片归属方不会变动，游戏结束时持有卡牌多者获胜。"
+          : "卡片归属方会变动，正确选择将减少本方卡片，错误选择增加本方卡片，先清空本方卡片者获胜。"
+        ),
+         
+        (gameStarted || !hasOpponent) ? canvasWidth + canvasSpacing : deckLeft + deckWidthPixels + canvasSpacing,
+        opponentDeckTop + textfieldHeight * 3 + canvasSpacing * 4 + buttonSize,
+        false, false, {
+          width: canvasWidth - (deckLeft + deckWidthPixels + canvasSpacing + canvasMargin),
+          textAlign: "left",
+        }
+      )}
+      {<Box sx={{
         position: "absolute",
-        left: (clientWidth - playControlsWidth) / 2,
-        top: opponentDeckBottom + (hasOpponent ? canvasSpacing : 0),
+        left: gameStarted ? (clientWidth - playControlsWidth) / 2 : canvasWidth + canvasSpacing,
+        top: playerDeckTop - canvasSpacing - middlebandHeight,
         transition: "top 0.5s, left 0.5s",
       }}>
         <PlayControls
           onPreviousClick={globalMethods.onPreviousMusicClick}
           onNextClick={globalMethods.onNextMusicClick}
-          onPauseClick={globalMethods.onPauseMusicClick}
+          onPauseClick={() => {
+            globalMethods.onPauseMusicClick();
+            if (!roundInfo.opponentTimeoutSet) {
+              const playbackState = globalState.playbackState;
+              if (playbackState.paused || playbackState.playbackPaused) {
+                newRound();
+              }
+            }
+          }}
           globalState={globalState}
         ></PlayControls>
       </Box>}
