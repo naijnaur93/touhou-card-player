@@ -1,6 +1,6 @@
 'use client';
 
-import { List, ListItem, Typography, Tabs, Tab, Paper, Box, Stack, TextField } from "@mui/material";
+import { List, ListItem, Typography, Tabs, Tab, Paper, Box, Stack, TextField, Grid, Divider } from "@mui/material";
 import { useState, useRef, useEffect, useMemo } from "react";
 import Button from '@mui/material/Button';
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -16,6 +16,7 @@ import MusicIdSelectPanel from "./musicIdSelectPanel";
 import { isCardPrefixValid } from "./musicIdSelectPanel";
 import GameSimulatorPanel from "./gameSimulatorPanel";
 import useMediaQuery from '@mui/material/useMediaQuery';
+import Link from "next/link";
 
 const constrainedWidth = {
   width: '100%',
@@ -285,10 +286,6 @@ export default function Page() {
       })
   }, [])
 
-  const handleTabsChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
-
   const characterInPlaylist = (musicPlayerState, character, allowTemporarySkip = false) => {
     if (musicPlayerState.musicIds[character] === -1) {
       return false;
@@ -510,27 +507,94 @@ export default function Page() {
     // }
   }, [tabValue])
 
+  const tabButtonSx = isSmallScreen ? {
+    whiteSpace: "nowrap",
+    textTransform: "none",
+    minWidth: "3rem", height: "2rem", fontSize: "1rem",
+  } : {
+    whiteSpace: "nowrap",
+    textTransform: "none",
+    minWidth: "clamp(3rem, 7.5vw, 3.6rem)", height: "clamp(2rem, 5vw, 2.4rem)", fontSize: "clamp(1rem, 2.5vw, 1.2rem)",
+  }
+  function createTabButton(index, value, text) {
+    return <Button
+      onClick={() => setTabValue(index)}
+      className="chinese"
+      color={value === index ? "warning" : "primary"}
+      size="small"
+      sx={tabButtonSx}
+    >{text}</Button>
+  }
+
+  function createFunButton(text, onClick=null, color="primary", additionalSx={}) {
+    return <Button
+      onClick={onClick}
+      className="chinese"
+      size="small"
+      color={color}
+      sx={{
+        ...tabButtonSx,
+        ...additionalSx
+      }}
+    >{text}</Button>
+  }
+
   return <ThemeProvider theme={darkTheme}>
     {isLoading ? <div>Loading...</div> : <Box align="center" alignItems="center" justifyContent="center" sx={{width: "100%"}}>
       <Box sx={{
         width: '100%',
         backgroundColor: "black",
       }} 
-      padding={1}
-      align="center" alignItems="center" justifyContent="center"
+        padding={1}
+        align="center" alignItems="center" justifyContent="center"
       >
-        <Tabs value={tabValue} onChange={handleTabsChange} className="chinese">
-          <Tab label="卡牌播放器" />
-          <Tab label="列表播放器" />
-          <Tab label="曲目与卡片设定" />
-          <Tab label="游戏模拟器" />
-        </Tabs>
+        <Box
+          paddingBottom={1}
+          paddingTop={1}
+        >
+          <Stack direction="row" spacing={1} useFlexGap 
+            divider={<Divider orientation="vertical" flexItem />}
+          sx={{
+            justifyContent: "center",
+            display: "flex",
+            flexWrap: "wrap"
+          }}>
+            {createTabButton(0, tabValue, "卡牌")}
+            {createTabButton(1, tabValue, "列表")}
+            {createFunButton(
+              isSmallScreen ? "Alice!" : "We need more Alice!", 
+              () => {
+                const keyword = "アリス";
+                // find character name with that keyword
+                let characters = Object.keys(data.data);
+                let found = [];
+                characters.forEach((character) => {
+                  if (character.includes(keyword)) {
+                    found.push(character);
+                  }
+                })
+                if (found.length === 0) {return;}
+                found = found[0];
+                if (musicPlayerState.musicIds[found] === -1) {return;}
+                if (musicPlayerState.temporarySkip[found]) {return;}
+                if (musicPlayerState.currentPlaying === found) {return;}
+                playMusicOfCharacter(found);
+            }, "warning")}
+            {createTabButton(2, tabValue, "设定")}
+            {!isSmallScreen && createTabButton(3, tabValue, "游戏")}
+            {createFunButton("源码", () => {
+              window.open("https://github.com/lightbulb128/touhou-card-player");
+            }, "primary", {
+              textDecoration: "underline"
+            })}
+          </Stack>
+        </Box>
 
         <Box sx={{
           display: "flex",
           flexWrap: "nowrap",
           overflow: "hidden",
-        }} paddingTop={1}>
+        }}>
           <TransitionTab index={0} value={tabValue}>
             <BoxPaper>
               <MusicPlayerPanel
