@@ -215,6 +215,25 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
   let playerDeckFilled = deckInfo.playerDeck.map((deckCard) => deckCard !== null && characterExists(deckCard[0]));
   let opponentDeckFilled = deckInfo.opponentDeck.map((deckCard) => deckCard !== null && characterExists(deckCard[0]));
   
+  const opponentEnabledButtonLeft = deckLeft - buttonSize - canvasSpacing;
+  const opponentEnabledButtonTop = hasOpponent ? opponentDeckBottom - buttonSize : playerDeckTop
+  const opponentDeckFilledCount = opponentDeckFilled.filter((value) => value).length;
+  const opponentDeckFull = opponentDeckFilledCount === deckInfo.opponentDeck.length;
+  const opponentDeckEmpty = opponentDeckFilledCount === 0;
+  const playerDeckFilledCount = playerDeckFilled.filter((value) => value).length;
+  const playerDeckFull = playerDeckFilledCount === deckInfo.playerDeck.length;
+  const playerDeckEmpty = playerDeckFilledCount === 0;
+
+  let gameFinished = !gameStarted;
+  const traditionalMode = opponentSettings.traditionalMode;
+  if (gameStarted) {
+    if (traditionalMode) {
+      gameFinished = playerDeckEmpty || opponentDeckEmpty;
+    } else {
+      gameFinished = playerDeckEmpty && opponentDeckEmpty;
+    }
+  }
+
   // calculate card positioning and size infos
   let cardRenderInfos = {};
   let cardPlaceholderInfos = [];
@@ -259,10 +278,12 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
     const left = deckLeft + (index % layoutInfo.deckWidth) * (cardWidth + cardSpacing);
     const top = playerDeckTop + Math.floor(index / layoutInfo.deckWidth) * (cardHeight + cardSpacing);
     if (deckCard == null || !characterExists(deckCard[0])) {
-      cardPlaceholderInfos.push({
-        key: "placeholder" + cardPlaceholderInfos.length,
-        left, top, width: cardWidth, height: cardHeight,
-      })
+      if (!gameStarted) {
+        cardPlaceholderInfos.push({
+          key: "placeholder" + cardPlaceholderInfos.length,
+          left, top, width: cardWidth, height: cardHeight,
+        })
+      }
     } else {
       const [character, cardIndex] = deckCard;
       if (!characterExists(character)) {return;}
@@ -298,10 +319,12 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
       const left = deckLeft + (index % layoutInfo.deckWidth) * (cardWidth + cardSpacing);
       const top = opponentDeckTop + Math.floor(index / layoutInfo.deckWidth) * (cardHeight + cardSpacing);
       if (deckCard == null || !characterExists(deckCard[0])) {
-        cardPlaceholderInfos.push({
-          key: "placeholder" + cardPlaceholderInfos.length,
-          left, top, width: cardWidth, height: cardHeight,
-        })
+        if (!gameStarted) {
+          cardPlaceholderInfos.push({
+            key: "placeholder" + cardPlaceholderInfos.length,
+            left, top, width: cardWidth, height: cardHeight,
+          })
+        }
       } else {
         const [character, cardIndex] = deckCard;
         if (!characterExists(character)) {return;}
@@ -339,12 +362,98 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
   Object.entries(cardRenderInfos).forEach(([character, characterCardInfos]) => {
     characterCardInfos.forEach((cardRenderInfo) => {
       if (!cardRenderInfo.inDeck) {return;}
-      cardRenderInfo.paperStyles["&:hover"] = {
-        backgroundColor: "lightcyan",
+      // backcolor
+      if (!gameStarted) {
+        cardRenderInfo.paperStyles["&:hover"] = {
+          backgroundColor: "lightcyan",
+        }
+      } else {
+        if (roundInfo.opponentMistaken.includes(character) || roundInfo.playerMistaken.includes(character)) {
+          cardRenderInfo.backgroundColor = "lightsalmon";
+        } else if (roundInfo.foundBy !== 0 && character === globalState.musicPlayerState.currentPlaying) {
+          cardRenderInfo.backgroundColor = "lightgreen";
+        } else if (roundInfo.foundBy === 0) {
+          cardRenderInfo.paperStyles["&:hover"] = {
+            backgroundColor: "lightcyan",
+          }
+        }
+      }
+      // onclick when game has started
+      if (gameStarted) {
+        cardRenderInfo.props["onClick"] = () => {
+          if (roundInfo.foundBy !== 0) {return;}
+          if (gameFinished) {return;}
+          if (roundInfo.opponentMistaken.includes(character) || roundInfo.playerMistaken.includes(character)) {return;}
+          if (character === globalState.musicPlayerState.currentPlaying) {
+            setRoundInfo({
+              ...roundInfo,
+              foundBy: 1,
+            });
+          } else {
+            let newPlayerMistaken = roundInfo.playerMistaken.slice();
+            newPlayerMistaken.push(character);
+            setRoundInfo({
+              ...roundInfo,
+              playerMistaken: newPlayerMistaken,
+            });
+          }
+        }
       }
       cardRenderInfo.zIndex = 1; // for those with the same character but not same cardIndex, zIndex = 0 so that it is hidden
     });
   });
+
+  // for obtained
+  const playerObtained = gameInfo.playerObtained.filter((card) => characterExists(card[0]));
+  const opponentObtained = gameInfo.opponentObtained.filter((card) => characterExists(card[0]));
+  if (gameStarted) {
+    const availableWidth = canvasWidth - 2 * canvasMargin - cardWidth - canvasSpacing;
+    {
+      let obtainedOverlap = cardWidth * 0.6;
+      const requiredWidth = ((playerObtained.length > 0) 
+        ? cardWidth * playerObtained.length - obtainedOverlap * (playerObtained.length - 1)
+        : 0
+      );
+      if (playerObtained.length > 1 && requiredWidth > availableWidth) {
+        obtainedOverlap = (availableWidth - cardWidth * playerObtained.length) / (playerObtained.length - 1);
+      }
+      const offset = canvasWidth - canvasMargin - cardWidth * 2 - canvasSpacing;
+      for (let i = playerObtained.length - 1; i >= 0; i--) {
+        let character = playerObtained[i][0];
+        let cardIndex = playerObtained[i][1];
+        cardRenderInfos[character].forEach((cardRenderInfo, index) => {
+          cardRenderInfo.left = offset - (playerObtained.length - 1 - i) * (cardWidth - obtainedOverlap);
+          cardRenderInfo.top = playerObtainedTop;
+          cardRenderInfo.width = cardWidth;
+          cardRenderInfo.zIndex = index === cardIndex ? i + 1 : 0;
+          cardRenderInfo.assigned = true;
+        });
+      }
+    }
+    if (hasOpponent) {
+      let obtainedOverlap = cardWidth * 0.6;
+      const requiredWidth = ((opponentObtained.length > 0) 
+        ? cardWidth * opponentObtained.length - obtainedOverlap * (opponentObtained.length - 1)
+        : 0
+      );
+      if (opponentObtained.length > 1 && requiredWidth > availableWidth) {
+        obtainedOverlap = (availableWidth - cardWidth * opponentObtained.length) / (opponentObtained.length - 1);
+      }
+      const offset = canvasMargin + canvasSpacing + cardWidth;
+      for (let i = opponentObtained.length - 1; i >= 0; i--) {
+        let character = opponentObtained[i][0];
+        let cardIndex = opponentObtained[i][1];
+        cardRenderInfos[character].forEach((cardRenderInfo, index) => {
+          cardRenderInfo.left = offset + (opponentObtained.length - 1 - i) * (cardWidth - obtainedOverlap);
+          cardRenderInfo.top = opponentObtainedTop;
+          cardRenderInfo.width = cardWidth;
+          cardRenderInfo.zIndex = index === cardIndex ? i + 1 : 0;
+          cardRenderInfo.reversed = true;
+          cardRenderInfo.assigned = true;
+        });
+      }
+    }
+  }
 
   // for those not assigned
   if (!gameStarted) { // the cards are placed in the middleband to be selected
@@ -602,16 +711,11 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
     return selectableCharacters;
   }
 
-  const opponentEnabledButtonLeft = deckLeft - buttonSize - canvasSpacing;
-  const opponentEnabledButtonTop = hasOpponent ? opponentDeckBottom - buttonSize : playerDeckTop
-  const opponentDeckFilledCount = opponentDeckFilled.filter((value) => value).length;
-  const opponentDeckFull = opponentDeckFilledCount === deckInfo.opponentDeck.length;
-  const opponentDeckEmpty = opponentDeckFilledCount === 0;
-  const playerDeckFilledCount = playerDeckFilled.filter((value) => value).length;
-  const playerDeckFull = playerDeckFilledCount === deckInfo.playerDeck.length;
-  const playerDeckEmpty = playerDeckFilledCount === 0;
 
   function resetRoundInfo() {
+    if (roundInfo.opponentTimeout) {
+      clearTimeout(roundInfo.opponentTimeout);
+    }
     setRoundInfo({
       opponentTimeoutSet: false,
       opponentTimeout: null,
@@ -624,13 +728,29 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
   function randomizeOpponentClickTime() {
     const timeAverage = opponentSettings.timeAverage;
     const timeDeviation = opponentSettings.timeDeviation;
-    return (timeAverage + Math.random() * timeDeviation * 2 - timeDeviation) * 1000; // ms
+    let t = (timeAverage + Math.random() * timeDeviation * 2 - timeDeviation) * 1000;
+    if (t < 10) { t = 10; }
+    return t; // ms
   }
 
   function simulateOpponentClick() {
     if (!hasOpponent || !gameStarted) return;
     if (!timeoutReadRef.current) return;
     const { layoutInfo, deckInfo, gameInfo, roundInfo, opponentSettings, globalState } = timeoutReadRef.current;
+    let gameFinished = false;
+    let playerDeckFilledCount = deckInfo.playerDeck.filter((deckCard) => deckCard !== null).length;
+    let playerDeckEmpty = playerDeckFilledCount === 0;
+    let opponentDeckFilledCount = deckInfo.opponentDeck.filter((deckCard) => deckCard !== null).length;
+    let opponentDeckEmpty = opponentDeckFilledCount === 0;
+    if (opponentSettings.traditionalMode) {
+      gameFinished = playerDeckEmpty || opponentDeckEmpty;
+    } else {
+      gameFinished = playerDeckEmpty && opponentDeckEmpty
+    }
+    if (gameFinished) {
+      console.log("Opponent click: Game finished.");
+      return;
+    }
     if (roundInfo.foundBy === 1) {
       console.log("Opponent click: Player has already taken it.");
       return;
@@ -646,6 +766,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
       mistakeRate *= cardsOnDeck / totalSlotsOnDeck;
     }
     const mistakeDiceRoll = Math.random();
+    console.log("Opponent click: Mistake rate: " + mistakeRate + ", dice roll: " + mistakeDiceRoll);
     let currentCharacter = globalState.musicPlayerState.currentPlaying;
     let opponentCorrect = true;
     if (mistakeDiceRoll < mistakeRate) {
@@ -704,17 +825,186 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
   }
 
   function settleRound() {
-
+    const currentCharacter = globalState.musicPlayerState.currentPlaying;
+    let foundBy = roundInfo.foundBy;
+    let foundInPlayerDeck = false;
+    let currentCharacterCard = null;
+    deckInfo.playerDeck.forEach((deckCard) => {
+      if (deckCard && deckCard[0] === currentCharacter) {
+        foundInPlayerDeck = true;
+        currentCharacterCard = [...deckCard];
+      }
+    });
+    let foundInOpponentDeck = false;
+    deckInfo.opponentDeck.forEach((deckCard) => {
+      if (deckCard && deckCard[0] === currentCharacter) {
+        foundInOpponentDeck = true;
+        currentCharacterCard = [...deckCard];
+      }
+    });
+    if (foundBy === 0) {
+      // check if there is actually a card with the current character in the deck
+      if (foundInPlayerDeck || foundInOpponentDeck) {
+        // if so, we count this as opponent's when opponent is present
+        if (hasOpponent) {
+          foundBy = 2;
+        } else {
+          foundBy = 1;
+        }
+      }
+    }
+    if (foundBy === 1) {
+      setGameInfo({
+        ...gameInfo,
+        playerObtained: [...gameInfo.playerObtained, currentCharacterCard],
+      });
+    } 
+    if (foundBy === 2) {
+      setGameInfo({
+        ...gameInfo,
+        opponentObtained: [...gameInfo.opponentObtained, currentCharacterCard],
+      });
+    }
+    let newPlayerDeck = deckInfo.playerDeck.slice();
+    let newOpponentDeck = deckInfo.opponentDeck.slice();
+    // remove correct card from either deck, if exists
+    if (foundInPlayerDeck) {
+      for (let i = 0; i < newPlayerDeck.length; i++) {
+        if (newPlayerDeck[i] && newPlayerDeck[i][0] === currentCharacter) {
+          newPlayerDeck[i] = null;
+        }
+      }
+    }
+    if (foundInOpponentDeck) {
+      for (let i = 0; i < newOpponentDeck.length; i++) {
+        if (newOpponentDeck[i] && newOpponentDeck[i][0] === currentCharacter) {
+          newOpponentDeck[i] = null;
+        }
+      }
+    }
+    if (!hasOpponent || !traditionalMode) {
+      setDeckInfo({
+        playerDeck: newPlayerDeck,
+        opponentDeck: newOpponentDeck,
+      });
+    } else { // traditionalMode && hasOpponent
+      let playerGives = newPlayerDeck.map((deckCard) => {
+        return (deckCard !== null) && roundInfo.opponentMistaken.includes(deckCard[0]);
+      });
+      let opponentGives = newOpponentDeck.map((deckCard) => {
+        return (deckCard !== null) && roundInfo.playerMistaken.includes(deckCard[0]);
+      });
+      let playerTakeRandomCount = newPlayerDeck.filter((deckCard) => {
+        return (deckCard !== null) && roundInfo.playerMistaken.includes(deckCard[0]);
+      }).length;
+      let opponentTakeRandomCount = newOpponentDeck.filter((deckCard) => {
+        return (deckCard !== null) && roundInfo.opponentMistaken.includes(deckCard[0]);
+      }).length;
+      if (foundBy === 1 && foundInOpponentDeck) { opponentTakeRandomCount++; }
+      if (foundBy === 2 && foundInPlayerDeck) { playerTakeRandomCount++; }
+      const minusCount = Math.min(playerTakeRandomCount, opponentTakeRandomCount);
+      playerTakeRandomCount -= minusCount;
+      opponentTakeRandomCount -= minusCount;
+      for (let i = 0; i < playerGives.length; i++) {
+        if (playerGives[i] && playerTakeRandomCount > 0) {
+          playerGives[i] = false;
+          playerTakeRandomCount--;
+        }
+      }
+      for (let i = 0; i < opponentGives.length; i++) {
+        if (opponentGives[i] && opponentTakeRandomCount > 0) {
+          opponentGives[i] = false;
+          opponentTakeRandomCount--;
+        }
+      }
+      while (playerTakeRandomCount > 0) {
+        let choices = [];
+        newOpponentDeck.forEach((deckCard, index) => {
+          let a = deckCard && characterExists(deckCard[0]) && !opponentGives[index];
+          if (a) {choices.push(index);}
+        });
+        if (choices.length === 0) break;
+        const choiceIndex = Math.floor(Math.random() * choices.length);
+        const choice = choices[choiceIndex];
+        opponentGives[choice] = true;
+        playerTakeRandomCount--;
+      }
+      while (opponentTakeRandomCount > 0) {
+        let choices = [];
+        newPlayerDeck.forEach((deckCard, index) => {
+          let a = deckCard && characterExists(deckCard[0]) && !playerGives[index];
+          if (a) {choices.push(index);}
+        });
+        if (choices.length === 0) break;
+        const choiceIndex = Math.floor(Math.random() * choices.length);
+        const choice = choices[choiceIndex];
+        playerGives[choice] = true;
+        opponentTakeRandomCount--;
+      }
+      // cancel gives in playerGives and opponentGives
+      while (true) {
+        let playerGiveIndices = [];
+        playerGives.forEach((value, index) => {
+          if (value) {playerGiveIndices.push(index);}
+        });
+        let opponentGiveIndices = [];
+        opponentGives.forEach((value, index) => {
+          if (value) {opponentGiveIndices.push(index);}
+        });
+        if (playerGiveIndices.length === 0 || opponentGiveIndices.length === 0) break;
+        const playerCancelIndex = Math.floor(Math.random() * playerGiveIndices.length);
+        const opponentCancelIndex = Math.floor(Math.random() * opponentGiveIndices.length);
+        playerGives[playerGiveIndices[playerCancelIndex]] = false;
+        opponentGives[opponentGiveIndices[opponentCancelIndex]] = false;
+      }
+      // give
+      let playerSlots = [];
+      let opponentSlots = [];
+      newPlayerDeck.forEach((deckCard, index) => {
+        if (!deckCard || !characterExists(deckCard[0])) {
+          playerSlots.push(index);
+        }
+      });
+      newOpponentDeck.forEach((deckCard, index) => {
+        if (!deckCard || !characterExists(deckCard[0])) {
+          opponentSlots.push(index);
+        }
+      });
+      playerGives.forEach((value, index) => {
+        if (value && opponentSlots.length > 0) {
+          const slotIndex = Math.floor(Math.random() * opponentSlots.length);
+          const slot = opponentSlots[slotIndex];
+          newOpponentDeck[slot] = newPlayerDeck[index];
+          newPlayerDeck[index] = null;
+          opponentSlots.splice(slotIndex, 1);
+        }
+      });
+      opponentGives.forEach((value, index) => {
+        if (value && playerSlots.length > 0) {
+          const slotIndex = Math.floor(Math.random() * playerSlots.length);
+          const slot = playerSlots[slotIndex];
+          newPlayerDeck[slot] = newOpponentDeck[index];
+          newOpponentDeck[index] = null;
+          playerSlots.splice(slotIndex, 1);
+        }
+      });
+      setDeckInfo({
+        playerDeck: newPlayerDeck,
+        opponentDeck: newOpponentDeck,
+      });
+    }
   }
 
   function newRound() {
+    console.log("New round");
     // if opponentTimeout is set, clear it
     if (roundInfo.opponentTimeoutSet) {
       clearTimeout(roundInfo.opponentTimeout);
     }
     let opponentTimeout = null;
-    if (hasOpponent) {
+    if (hasOpponent && !gameFinished) {
       const clickTime = randomizeOpponentClickTime();
+      console.log("New round: Opponent click in " + clickTime + "ms");
       opponentTimeout = setTimeout(simulateOpponentClick, clickTime);
     }
     setRoundInfo({
@@ -728,13 +1018,29 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
 
   const nextMusicCallback = () => {
     if (!gameStarted) return;
-    newRound();
+    console.log("Next music callback, paused = " + globalState.playbackState.paused);
+    if (!globalState.playbackState.paused) {
+      newRound();
+    } else {
+      resetRoundInfo();
+    }
   };
 
   const startGame = () => {
     globalMethods.reroll(true);
     setGameInfo({
       gameStarted: true,
+      playerObtained: [],
+      opponentObtained: [],
+    });
+    resetRoundInfo();
+  }
+
+  const stopGame = () => {
+    setGameInfo({
+      gameStarted: false,
+      playerObtained: [],
+      opponentObtained: [],
     });
     resetRoundInfo();
   }
@@ -1005,9 +1311,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           if (!gameStarted) {
             startGame();
           } else {
-            setGameInfo({
-              gameStarted: false,
-            });
+            stopGame();
           }
         },
         (!gameStarted) ? (!(playerDeckFull && (!hasOpponent || opponentDeckFull))) : (false), !gameStarted ? "success" : "error"
@@ -1062,7 +1366,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         onChange={(e) => {
           setOpponentSettings({
             ...opponentSettings,
-            timeAverage: e.target.value,
+            timeAverage: parseFloat(e.target.value),
           });
         }}
       >
@@ -1082,7 +1386,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         onChange={(e) => {
           setOpponentSettings({
             ...opponentSettings,
-            timeDeviation: e.target.value,
+            timeDeviation: parseFloat(e.target.value)
           });
         }}
       >
@@ -1102,7 +1406,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         onChange={(e) => {
           setOpponentSettings({
             ...opponentSettings,
-            mistakeRate: e.target.value,
+            mistakeRate: parseFloat(e.target.value),
           });
         }}
       >
@@ -1152,6 +1456,36 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           textAlign: "left",
         }
       )}
+      {createText("playerObtainedText",
+        playerObtained.length.toString(),
+        gameStarted ? (canvasWidth - canvasMargin - cardWidth) : (canvasWidth + canvasSpacing),
+        playerObtainedTop,
+        false, false, {
+          fontFamily: "Georgia, serif",
+          fontSize: cardWidth * 0.45 + "px",
+          width: cardWidth,
+          height: cardHeight,
+          textAlign: "center",
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+        }
+      )}
+      {createText("opponentObtainedText",
+        opponentObtained.length.toString(),
+        (hasOpponent && gameStarted) ? (canvasMargin) : (-cardWidth - canvasSpacing),
+        opponentObtainedTop,
+        false, false, {
+          fontFamily: "Georgia, serif",
+          fontSize: cardWidth * 0.45 + "px",
+          width: cardWidth,
+          height: cardHeight,
+          textAlign: "center",
+          justifyContent: "center",
+          alignItems: "center",
+          display: "flex",
+        }
+      )}
       {<Box sx={{
         position: "absolute",
         left: gameStarted ? (clientWidth - playControlsWidth) / 2 : canvasWidth + canvasSpacing,
@@ -1160,7 +1494,10 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
       }}>
         <PlayControls
           onPreviousClick={globalMethods.onPreviousMusicClick}
-          onNextClick={globalMethods.onNextMusicClick}
+          onNextClick={() => {
+            globalMethods.onNextMusicClick();
+            settleRound();
+          }}
           onPauseClick={() => {
             globalMethods.onPauseMusicClick();
             if (!roundInfo.opponentTimeoutSet) {
