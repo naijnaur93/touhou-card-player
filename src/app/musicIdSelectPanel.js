@@ -173,7 +173,6 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
         console.log(playOrder[index], "not in playlist");
         index = (index + 1) % playOrder.length;
       }
-      console.log("playOrder", playOrder, "index", index, "character", playOrder[index]);
       playMusicOfCharacter(playOrder[index], {}, newMusicPlayerState);
     } else {
       setMusicPlayerState(newMusicPlayerState);

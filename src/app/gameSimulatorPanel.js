@@ -15,6 +15,8 @@ import {
   PlayArrow as PlayIcon,
   Stop as StopIcon,
   Loop as TraditionalIcon,
+  FilterAlt as FilterOnIcon,
+  FilterAltOff as FilterOffIcon,
 } from "@mui/icons-material";
 import { PlayControls } from "./playControls";
 
@@ -27,6 +29,32 @@ function CardPlaceholder() {
       border: "2px dashed gray",
     }}
   ></CardComponent>
+}
+function TimerDisplay({ roundInfo, updating, sx={} }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = !updating ? null : setInterval(() => {
+      setNow(Date.now());
+    }, 10); // Update every 10 milliseconds
+
+    return () => {
+      clearInterval(interval);
+    }
+  }, [updating]);
+
+  let time = "";
+  if (roundInfo.startTimestamp > 0 && roundInfo.foundBy !== 0) {
+    time = roundInfo.foundTimestamp - roundInfo.startTimestamp
+  } else {
+    time = now - roundInfo.startTimestamp
+  }
+  if (time < 0) {
+    time = 0;
+  }
+  time = (time / 1000).toFixed(2) + "s";
+
+  return <Typography sx={sx}>{time}</Typography>;
 }
 
 const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }) => {
@@ -53,6 +81,8 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
     opponentObtained: [],
   });
   const [roundInfo, setRoundInfo] = useState({
+    startTimestamp: 0,
+    foundTimestamp: 0,
     opponentTimeoutSet: false,
     opponentTimeout: null,
     opponentMistaken: [],
@@ -63,8 +93,15 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
     timeAverage: 8,
     timeDeviation: 3,
     mistakeRate: 0.1,
-    traditionalMode: false,
+    traditionalMode: true,
   });
+  const [filterUnselectedMusic, setFilterUnselectedMusic] = useState(false);
+  const [timingStats, setTimingStats] = useState({
+    "allAccumulateTime": 0,
+    "correctAccumulateTime": 0,
+    "allClicks": 0,
+    "correctClicks": 0,
+  })
 
   const timeoutReadRef = useRef(null);
 
@@ -78,6 +115,15 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
       globalState: globalState,
     }
   });
+
+  function resetTimingStats() {
+    setTimingStats({
+      "allAccumulateTime": 0,
+      "correctAccumulateTime": 0,
+      "allClicks": 0,
+      "correctClicks": 0,
+    })
+  }
 
   function setLayoutInfo(newLayoutInfo) {
     const cardCount = newLayoutInfo.deckWidth * newLayoutInfo.deckHeight;
@@ -143,7 +189,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [layoutInfo, setLayoutInfo])
+  }, [layoutInfo])
 
   const optionState = globalState.optionState;
   const gameStarted = gameInfo.gameStarted;
@@ -176,7 +222,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
     middlebandHeight = playControlsHeight;
   }
   const opponentObtainedTop = canvasMargin;
-  const opponentDeckTop = !gameStarted ? canvasMargin : (opponentObtainedTop + cardHeight + canvasSpacing);
+  const opponentDeckTop = (!gameStarted || !hasOpponent) ? canvasMargin : (opponentObtainedTop + cardHeight + canvasSpacing);
   const opponentDeckBottom = opponentDeckTop + (!hasOpponent ? 0 : cardHeight * layoutInfo.deckHeight + cardSpacing * (layoutInfo.deckHeight - 1));
   let middlebandTop = opponentDeckBottom + (!hasOpponent ? 0 : canvasSpacing);
   const playerDeckTop = middlebandTop + middlebandHeight + canvasSpacing;
@@ -227,10 +273,14 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
   let gameFinished = !gameStarted;
   const traditionalMode = opponentSettings.traditionalMode;
   if (gameStarted) {
-    if (traditionalMode) {
-      gameFinished = playerDeckEmpty || opponentDeckEmpty;
+    if (hasOpponent) {
+      if (traditionalMode) {
+        gameFinished = playerDeckEmpty || opponentDeckEmpty;
+      } else {
+        gameFinished = playerDeckEmpty && opponentDeckEmpty;
+      }
     } else {
-      gameFinished = playerDeckEmpty && opponentDeckEmpty;
+      gameFinished = playerDeckEmpty;
     }
   }
 
@@ -372,7 +422,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           cardRenderInfo.backgroundColor = "lightsalmon";
         } else if (roundInfo.foundBy !== 0 && character === globalState.musicPlayerState.currentPlaying) {
           cardRenderInfo.backgroundColor = "lightgreen";
-        } else if (roundInfo.foundBy === 0) {
+        } else if (!gameFinished && roundInfo.foundBy === 0) {
           cardRenderInfo.paperStyles["&:hover"] = {
             backgroundColor: "lightcyan",
           }
@@ -381,14 +431,26 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
       // onclick when game has started
       if (gameStarted) {
         cardRenderInfo.props["onClick"] = () => {
-          if (roundInfo.foundBy !== 0) {return;}
-          if (gameFinished) {return;}
+          if (roundInfo.foundBy !== 0) {
+            return;
+          }
+          if (gameFinished) {
+            return;
+          }
           if (roundInfo.opponentMistaken.includes(character) || roundInfo.playerMistaken.includes(character)) {return;}
           if (character === globalState.musicPlayerState.currentPlaying) {
             setRoundInfo({
               ...roundInfo,
+              foundTimestamp: Date.now(),
               foundBy: 1,
             });
+            setTimingStats({
+              ...timingStats,
+              "correctClicks": timingStats.correctClicks + 1,
+              "correctAccumulateTime": timingStats.correctAccumulateTime + (Date.now() - roundInfo.startTimestamp),
+              "allClicks": timingStats.allClicks + 1,
+              "allAccumulateTime": timingStats.allAccumulateTime + (Date.now() - roundInfo.startTimestamp),
+            })
           } else {
             let newPlayerMistaken = roundInfo.playerMistaken.slice();
             newPlayerMistaken.push(character);
@@ -396,6 +458,11 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
               ...roundInfo,
               playerMistaken: newPlayerMistaken,
             });
+            setTimingStats({
+              ...timingStats,
+              "allClicks": timingStats.allClicks + 1,
+              "allAccumulateTime": timingStats.allAccumulateTime + (Date.now() - roundInfo.startTimestamp),
+            })
           }
         }
       }
@@ -408,14 +475,15 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
   const opponentObtained = gameInfo.opponentObtained.filter((card) => characterExists(card[0]));
   if (gameStarted) {
     const availableWidth = canvasWidth - 2 * canvasMargin - cardWidth - canvasSpacing;
+    const defaultObtainedOverlapRatio = 0.6;
     {
-      let obtainedOverlap = cardWidth * 0.6;
+      let obtainedOverlap = cardWidth * defaultObtainedOverlapRatio;
       const requiredWidth = ((playerObtained.length > 0) 
         ? cardWidth * playerObtained.length - obtainedOverlap * (playerObtained.length - 1)
         : 0
       );
       if (playerObtained.length > 1 && requiredWidth > availableWidth) {
-        obtainedOverlap = (availableWidth - cardWidth * playerObtained.length) / (playerObtained.length - 1);
+        obtainedOverlap = (cardWidth * playerObtained.length - availableWidth) / (playerObtained.length - 1);
       }
       const offset = canvasWidth - canvasMargin - cardWidth * 2 - canvasSpacing;
       for (let i = playerObtained.length - 1; i >= 0; i--) {
@@ -427,17 +495,25 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           cardRenderInfo.width = cardWidth;
           cardRenderInfo.zIndex = index === cardIndex ? i + 1 : 0;
           cardRenderInfo.assigned = true;
+          if (index === cardIndex) {
+            cardRenderInfo.boxStyles["&:hover"] = {
+              zIndex: 100,
+            };
+            cardRenderInfo.paperStyles["&:hover"] = {
+              backgroundColor: "lightcyan",
+            };
+          }
         });
       }
     }
     if (hasOpponent) {
-      let obtainedOverlap = cardWidth * 0.6;
+      let obtainedOverlap = cardWidth * defaultObtainedOverlapRatio;
       const requiredWidth = ((opponentObtained.length > 0) 
         ? cardWidth * opponentObtained.length - obtainedOverlap * (opponentObtained.length - 1)
         : 0
       );
       if (opponentObtained.length > 1 && requiredWidth > availableWidth) {
-        obtainedOverlap = (availableWidth - cardWidth * opponentObtained.length) / (opponentObtained.length - 1);
+        obtainedOverlap = (cardWidth * opponentObtained.length - availableWidth) / (opponentObtained.length - 1);
       }
       const offset = canvasMargin + canvasSpacing + cardWidth;
       for (let i = opponentObtained.length - 1; i >= 0; i--) {
@@ -450,6 +526,14 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           cardRenderInfo.zIndex = index === cardIndex ? i + 1 : 0;
           cardRenderInfo.reversed = true;
           cardRenderInfo.assigned = true;
+          if (index === cardIndex) {
+            cardRenderInfo.boxStyles["&:hover"] = {
+              zIndex: 100,
+            };
+            cardRenderInfo.paperStyles["&:hover"] = {
+              backgroundColor: "lightcyan",
+            };
+          }
         });
       }
     }
@@ -668,6 +752,17 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
     if (canvasRef.current) {
       w = canvasRef.current.clientWidth;
     }
+    let texts = text;
+    // if "\n" in text, split it into multiple lines
+    if (text.includes("\n")) {
+      let r = text.split("\n"); texts = [];
+      for (let i = 0; i < r.length; i++) {
+        if (i != 0) {
+          texts.push(<br key={key + "-br-" + i} />);
+        }
+        texts.push(r[i]);
+      }
+    }
     return <Typography
       key={key}
       className="chinese"
@@ -677,11 +772,11 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         right: positionedWithRight ? (w - x) : "auto",
         top: y,
         color: hidden ? "transparent" : "white",
-        transition: "color 0.5s, top 0.5s, right 0.5s, left 0.5s",
+        transition: "color 0.5s, top 0.5s, right 0.5s, left 0.5s, bottom 0.5s",
         ...sx,
       }}
     >
-      {text}
+      {texts}
     </Typography>
   }
 
@@ -717,6 +812,8 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
       clearTimeout(roundInfo.opponentTimeout);
     }
     setRoundInfo({
+      startTimestamp: Date.now(),
+      foundTimestamp: Date.now(),
       opponentTimeoutSet: false,
       opponentTimeout: null,
       opponentMistaken: [],
@@ -812,6 +909,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         setRoundInfo({
           ...roundInfo,
           opponentTimeout: null,
+          foundTimestamp: Date.now(),
           foundBy: 2,
         });
       } else {
@@ -850,6 +948,12 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           foundBy = 2;
         } else {
           foundBy = 1;
+          // count as a mistaken player click
+          setTimingStats({
+            ...timingStats,
+            allClicks: timingStats.allClicks + 1,
+            allAccumulateTime: timingStats.allAccumulateTime + (Date.now() - roundInfo.startTimestamp),
+          })
         }
       }
     }
@@ -1008,6 +1112,8 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
       opponentTimeout = setTimeout(simulateOpponentClick, clickTime);
     }
     setRoundInfo({
+      startTimestamp: Date.now(),
+      foundTimestamp: Date.now(),
       opponentTimeoutSet: true,
       opponentTimeout: opponentTimeout,
       opponentMistaken: [],
@@ -1028,12 +1134,14 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
 
   const startGame = () => {
     globalMethods.reroll(true);
+    setFilterUnselectedMusic(false);
     setGameInfo({
       gameStarted: true,
       playerObtained: [],
       opponentObtained: [],
     });
     resetRoundInfo();
+    resetTimingStats();
   }
 
   const stopGame = () => {
@@ -1103,6 +1211,44 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           });
         },
         gameStarted || layoutInfo.deckWidth >= 15
+      )}
+      <TimerDisplay roundInfo={roundInfo}
+        updating={gameStarted && !globalState.playbackState.paused}
+        sx={{
+          position: "absolute",
+          left: deckLeft + deckWidthPixels + canvasSpacing,
+          top: middlebandTop,
+          height: middlebandHeight,
+          color: gameStarted ? "white" : "transparent",
+          transition: "color 0.5s, top 0.5s, left 0.5s, height 0.5s",
+          fontFamily: "monospace",
+          fontSize: "2em",
+          paddingLeft: "0.5em",
+          display: "flex",
+          alignItems: "center",
+
+        }}
+      ></TimerDisplay>
+      {createText("playerTimingStatisticsText", 
+        (
+          "正确率: " + (timingStats.allClicks === 0 ? "N/A" : (
+            timingStats.correctClicks + "/" + timingStats.allClicks + " = " +
+            (timingStats.correctClicks / timingStats.allClicks * 100).toFixed(1) + "%"
+          )) + "\n" +
+          "平均响应: " + (timingStats.allClicks === 0 ? "N/A" : 
+            (timingStats.allAccumulateTime / timingStats.allClicks / 1000).toFixed(2) + "s"
+          ) + "\n" +
+          "正确响应: " + (timingStats.correctClicks === 0 ? "N/A" : 
+            (timingStats.correctAccumulateTime / timingStats.correctClicks / 1000).toFixed(2) + "s") 
+        ),
+        deckLeft + deckWidthPixels + canvasSpacing, 
+        "auto",
+        !gameStarted, false, {
+          bottom: canvasHeight - playerDeckBottom,
+          width: canvasWidth - (deckLeft + deckWidthPixels + canvasSpacing + canvasMargin),
+          textAlign: "left",
+          whiteSpace: "nowrap",
+        }
       )}
       {createButton("decreaseDeckWidthButton",
         <RemoveIcon sx={{fontSize: "1em"}}></RemoveIcon>, 
@@ -1320,7 +1466,86 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         !gameStarted ? "开始游戏" : "结束游戏", 
         opponentEnabledButtonLeft - canvasSpacing, 
         gameStarted ? playerDeckTop : playerDeckTop + buttonSize * 3 + canvasSpacing * 3 + (!hasOpponent ? (canvasSpacing + buttonSize) : 0),
-        gameStarted, true
+        false, true
+      )}
+      {<Box
+        key="filterButton"
+        sx={{
+          ...iconButtonProperties.boxStyle,
+          left: opponentEnabledButtonLeft, 
+          top: gameStarted 
+            ? playerDeckTop + buttonSize + canvasSpacing
+            : canvasHeight + canvasSpacing,
+          "&:hover": null,
+          backgroundColor: filterUnselectedMusic ? "primary.main" : "black",
+        }}
+        onClick={() => {
+          if (!gameStarted) {return;}
+          if (filterUnselectedMusic) {
+            let temporarySkip = {...globalState.musicPlayerState.temporarySkip};
+            Object.keys(temporarySkip).forEach((character) => {
+              temporarySkip[character] = false;
+            });
+            globalState.setMusicPlayerState({
+              ...globalState.musicPlayerState,
+              temporarySkip: temporarySkip
+            })
+          } else {
+            let temporarySkip = {...globalState.musicPlayerState.temporarySkip};
+            Object.keys(temporarySkip).forEach((character) => {
+              temporarySkip[character] = true;
+            });
+            deckInfo.playerDeck.forEach((deckCard) => {
+              if (deckCard && characterExists(deckCard[0])) {
+                temporarySkip[deckCard[0]] = false;
+              }
+            });
+            deckInfo.opponentDeck.forEach((deckCard) => {
+              if (deckCard && characterExists(deckCard[0])) {
+                temporarySkip[deckCard[0]] = false;
+              }
+            });
+            gameInfo.playerObtained.forEach((deckCard) => {
+              if (deckCard && characterExists(deckCard[0])) {
+                temporarySkip[deckCard[0]] = false;
+              }
+            });
+            gameInfo.opponentObtained.forEach((deckCard) => {
+              if (deckCard && characterExists(deckCard[0])) {
+                temporarySkip[deckCard[0]] = false;
+              }
+            });
+            const playOrder = globalState.musicPlayerState.playOrder;
+            let newPlayingCharacter = globalState.musicPlayerState.currentPlaying;
+            let newPlayingIndex = playOrder.indexOf(newPlayingCharacter);
+            for (let i = 0; i < playOrder.length; i++) {
+              if (!temporarySkip[playOrder[newPlayingIndex]]) {
+                newPlayingCharacter = playOrder[newPlayingIndex];
+                break;
+              }
+              newPlayingIndex = (newPlayingIndex + 1) % playOrder.length;
+            }
+            globalState.setMusicPlayerState({
+              ...globalState.musicPlayerState,
+              temporarySkip: temporarySkip,
+              currentPlaying: newPlayingCharacter,
+            });
+          }
+          setFilterUnselectedMusic(!filterUnselectedMusic);
+        }}
+      >
+        {filterUnselectedMusic 
+          ? <FilterOnIcon sx={{color: "black", fontSize: "1em"}}></FilterOnIcon> 
+          : <FilterOffIcon sx={{color: "primary.main", fontSize: "1em"}}></FilterOffIcon>
+        }
+      </Box>}
+      {createText("filterButtonText", 
+        filterUnselectedMusic ? "仅播放选中" : "播放所有", 
+        opponentEnabledButtonLeft - canvasSpacing, 
+        gameStarted 
+          ? playerDeckTop + buttonSize + canvasSpacing
+          : canvasHeight + canvasSpacing,
+        false, true
       )}
       {<Box
         key="opponentEnabledButton"
