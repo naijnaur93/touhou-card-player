@@ -27,8 +27,8 @@ used are linked from thwiki.cc.
 In short, you need to edit `public/data.json`, and add card images to the specific folders.
 
 - Adding a new character: create a new key in `data` section of `public/data.json`, and add the card file name, music key and tags there. The music key should be a filename present in `public/music` folder, OR, if this key is in the `sources` section of `data.json`, it should point to a valid music file on the internet (e.g. thbwiki).
-- Adding a new set of cards: in `public/page.js`, you add a new entry in `cardStyleSet` const. ALL required cards should be present in the new cards folder.
+- Adding a new set of cards: in `public/musicIdSelectPanel.js`, you add a new entry in `cardStyleSet` const. ALL required cards should be present in the new cards folder.
 - Switching to an entire new set of cards and musics
     - Apparently, you need to rewrite all the `public/data.json` and put the images correctly.
-    - Additionally, you need to take a look at the `getMusicName` function in `public/page.js` since there I have written some filename detection logic specific to touhou files as how I named them.
+    - Additionally, you need to take a look at the `getMusicName` function in `public/utils.js` since there I have written some filename detection logic specific to touhou files as how I named them.
     - Finally, I have a *We need more Alice!* button on the page top. You might want to edit that too (remove it or put someone you are favourite there.)
