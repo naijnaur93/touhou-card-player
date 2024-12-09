@@ -1311,7 +1311,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           });
           docCookies.setItem("deckCanvasRatio", newValue);
         },
-        layoutInfo.deckCanvasRatio <= CL.deckCanvasRatio.max
+        layoutInfo.deckCanvasRatio <= CL.deckCanvasRatio.min
       )}
       {createButton("deckLargerButton",
         <DeckLargerIcon sx={{fontSize: "1em"}}></DeckLargerIcon>, 
@@ -1327,7 +1327,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           });
           docCookies.setItem("deckCanvasRatio", newValue);
         },
-        layoutInfo.deckCanvasRatio >= CL.deckCanvasRatio.min
+        layoutInfo.deckCanvasRatio >= CL.deckCanvasRatio.max
       )}
       {createText("deckSizeText", 
         "卡牌尺寸", 
