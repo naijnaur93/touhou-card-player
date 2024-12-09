@@ -2,7 +2,7 @@
 
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
-import { useRef, useEffect, forwardRef } from "react";
+import { useRef, useEffect, forwardRef, useState } from "react";
 
 const CardComponent = forwardRef(({
   children,
@@ -20,6 +20,7 @@ const CardComponent = forwardRef(({
   let imageRef = useRef(null);
 
   useEffect(() => {
+    // console.log("useEffect triggered, src: ", src);
     if (imageRef.current) {
       let imageAspectRatio = imageRef.current.naturalWidth / imageRef.current.naturalHeight;
       if (imageAspectRatio > aspectRatio) {
@@ -27,14 +28,16 @@ const CardComponent = forwardRef(({
         imageRef.current.style.height = "auto";
         let topMargin = (1 - aspectRatio / imageAspectRatio) * 50;
         imageRef.current.style.top = topMargin + "%";
+        imageRef.current.style.left = 0;
       } else {
         imageRef.current.style.width = "auto";
         imageRef.current.style.height = "100%";
         let leftMargin = (1 - imageAspectRatio / aspectRatio) * 50;
         imageRef.current.style.left = leftMargin + "%";
+        imageRef.current.style.top = 0;
       }
     }
-  })
+  }, [src])
 
   return (
     <Paper

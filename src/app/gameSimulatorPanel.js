@@ -19,6 +19,23 @@ import {
   FilterAltOff as FilterOffIcon,
 } from "@mui/icons-material";
 import { PlayControls } from "./playControls";
+import docCookies from "./docCookies";
+
+const clClamp = (v, cl) => {
+  if (v > cl.max) return cl.max;
+  if (v < cl.min) return cl.min;
+  return v;
+}
+const CL = {
+  deckCanvasRatio: {max: 0.9, min: 0.4, interval: 0.025},
+  deckWidth: {max: 15, min: 3},
+  deckHeight: {max: 5, min: 1},
+  // opponentEnabled
+  opponentTimeAverage: {max: 20, min: 1, step: 0.5},
+  opponentTimeDeviation: {max: 10, min: 0, step: 0.5},
+  opponentMistakeRate: {min: 0, max: 1, step: 0.1},
+  // traditionalMode
+}
 
 function CardPlaceholder() {
   return <CardComponent
@@ -105,26 +122,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
 
   const timeoutReadRef = useRef(null);
 
-  useEffect(() => {
-    timeoutReadRef.current = {
-      layoutInfo: layoutInfo,
-      deckInfo: deckInfo,
-      gameInfo: gameInfo,
-      roundInfo: roundInfo,
-      opponentSettings: opponentSettings,
-      globalState: globalState,
-    }
-  });
-
-  function resetTimingStats() {
-    setTimingStats({
-      "allAccumulateTime": 0,
-      "correctAccumulateTime": 0,
-      "allClicks": 0,
-      "correctClicks": 0,
-    })
-  }
-
+  
   function setLayoutInfo(newLayoutInfo) {
     const cardCount = newLayoutInfo.deckWidth * newLayoutInfo.deckHeight;
     const needUpdateDeckInfo = (
@@ -158,9 +156,126 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
     }
     rawSetLayoutInfo(newLayoutInfo);
   }
-  
+
   useEffect(() => {
-    const handleResize = () => {
+    timeoutReadRef.current = {
+      layoutInfo: layoutInfo,
+      deckInfo: deckInfo,
+      gameInfo: gameInfo,
+      roundInfo: roundInfo,
+      opponentSettings: opponentSettings,
+      globalState: globalState,
+    }
+  });
+
+  // load cookies
+  useEffect(() => {
+    // deckCanvasRatio, deckWidth, deckHeight, hasOpponent is for layoutInfo
+    let additional = {};
+    {
+      let loaded = {};
+
+      let c = docCookies.getItem("deckCanvasRatio");
+      if (c !== null) {
+        c = parseFloat(c);
+        if (c >= CL.deckCanvasRatio.min && c <= CL.deckCanvasRatio.max) {
+          loaded["deckCanvasRatio"] = c;
+        } else {
+          docCookies.removeItem("deckCanvasRatio");
+        }
+      }
+
+      c = docCookies.getItem("deckWidth");
+      if (c !== null) {
+        c = parseInt(c);
+        if (c >= CL.deckWidth.min && c <= CL.deckWidth.max) {
+          loaded["deckWidth"] = c;
+        } else {
+          docCookies.removeItem("deckWidth");
+        }
+      }
+
+      c = docCookies.getItem("deckHeight");
+      if (c !== null) {
+        c = parseInt(c);
+        if (c >= CL.deckHeight.min && c <= CL.deckHeight.max) {
+          loaded["deckHeight"] = c;
+        } else {
+          docCookies.removeItem("deckHeight");
+        }
+      }
+
+      c = docCookies.getItem("hasOpponent");
+      if (c !== null) {
+        if (c == "T") {
+          loaded["hasOpponent"] = true;
+        } else if (c == "F") {
+          loaded["hasOpponent"] = false;
+        } else {
+          docCookies.removeItem("hasOpponent");
+        }
+      }
+
+      console.log(loaded);
+      if (Object.keys(loaded).length > 0) {
+        additional = loaded;
+      }
+    }
+
+    // opponentTimeAverage, opponentTimeDeviation, opponentMistakeRate, traditionalMode is for opponentSettings
+    {
+      let loaded = {};
+
+      let c = docCookies.getItem("opponentTimeAverage");
+      if (c !== null) {
+        c = parseFloat(c);
+        if (c >= CL.opponentTimeAverage.min && c <= CL.opponentTimeAverage.max) {
+          loaded["timeAverage"] = c;
+        } else {
+          docCookies.removeItem("opponentTimeAverage");
+        }
+      }
+
+      c = docCookies.getItem("opponentTimeDeviation");
+      if (c !== null) {
+        c = parseFloat(c);
+        if (c >= CL.opponentTimeDeviation.min && c <= CL.opponentTimeDeviation.max) {
+          loaded["timeDeviation"] = c;
+        } else {
+          docCookies.removeItem("opponentTimeDeviation");
+        }
+      }
+
+      c = docCookies.getItem("opponentMistakeRate");
+      if (c !== null) {
+        c = parseFloat(c);
+        if (c >= CL.opponentMistakeRate.min && c <= CL.opponentMistakeRate.max) {
+          loaded["mistakeRate"] = c;
+        } else {
+          docCookies.removeItem("opponentMistakeRate");
+        }
+      }
+
+      c = docCookies.getItem("traditionalMode");
+      if (c !== null) {
+        if (c == "T") {
+          loaded["traditionalMode"] = true;
+        } else if (c == "F") {
+          loaded["traditionalMode"] = false;
+        } else {
+          docCookies.removeItem("traditionalMode");
+        }
+      }
+
+      if (Object.keys(loaded).length > 0) {
+        setOpponentSettings({
+          ...opponentSettings,
+          ...loaded,
+        });
+      }
+    }
+
+    const handleResize = (additional = {}) => {
       let updater = {}
       if (canvasRef.current) {
         updater = {
@@ -178,18 +293,28 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
       if (flag) {
         setLayoutInfo({
           ...layoutInfo,
-          ...updater
+          ...updater,
+          ...additional
         });
       }
     };
   
     window.addEventListener('resize', handleResize);
-    handleResize(); // Call the function initially to set the layout
+    handleResize(additional); // Call the function initially to set the layout
   
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [layoutInfo])
+  }, []);
+
+  function resetTimingStats() {
+    setTimingStats({
+      "allAccumulateTime": 0,
+      "correctAccumulateTime": 0,
+      "allClicks": 0,
+      "correctClicks": 0,
+    })
+  }
 
   const optionState = globalState.optionState;
   const gameStarted = gameInfo.gameStarted;
@@ -1176,44 +1301,42 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         <DeckSmallerIcon sx={{fontSize: "1em"}}></DeckSmallerIcon>, 
         deckLeft + deckWidthPixels + canvasSpacing, playerDeckTop,
         () => {
+          const newValue = Math.max(
+            layoutInfo.deckCanvasRatio - CL.deckCanvasRatio.interval,
+            CL.deckCanvasRatio.min
+          );
           setLayoutInfo({
             ...layoutInfo,
-            deckCanvasRatio: layoutInfo.deckCanvasRatio - 0.025
+            deckCanvasRatio: newValue
           });
+          docCookies.setItem("deckCanvasRatio", newValue);
         },
-        layoutInfo.deckCanvasRatio <= 0.5
+        layoutInfo.deckCanvasRatio <= CL.deckCanvasRatio.max
       )}
       {createButton("deckLargerButton",
         <DeckLargerIcon sx={{fontSize: "1em"}}></DeckLargerIcon>, 
         deckLeft + deckWidthPixels + canvasSpacing * 2 + buttonSize, playerDeckTop,
         () => {
+          const newValue = Math.min(
+            layoutInfo.deckCanvasRatio + CL.deckCanvasRatio.interval,
+            CL.deckCanvasRatio.max
+          );
           setLayoutInfo({
             ...layoutInfo,
-            deckCanvasRatio: layoutInfo.deckCanvasRatio + 0.025
+            deckCanvasRatio: newValue
           });
-          console.log("deckCanvasRatio", layoutInfo.deckCanvasRatio);
+          docCookies.setItem("deckCanvasRatio", newValue);
         },
-        layoutInfo.deckCanvasRatio >= 0.9
+        layoutInfo.deckCanvasRatio >= CL.deckCanvasRatio.min
       )}
       {createText("deckSizeText", 
         "卡牌尺寸", 
         deckLeft + deckWidthPixels + canvasSpacing, playerDeckTop + buttonSize + canvasSpacing,
         gameStarted, false
       )}
-      {createButton("increaseDeckWidthButton",
-        <AddIcon sx={{fontSize: "1em"}}></AddIcon>, 
-        !gameStarted ? (deckLeft + deckWidthPixels + canvasSpacing) : (canvasWidth + canvasSpacing),
-        playerDeckBottom - buttonSize,
-        () => {
-          setLayoutInfo({
-            ...layoutInfo,
-            deckWidth: layoutInfo.deckWidth + 1
-          });
-        },
-        gameStarted || layoutInfo.deckWidth >= 15
-      )}
+      
       <TimerDisplay roundInfo={roundInfo}
-        updating={gameStarted && !globalState.playbackState.paused}
+        updating={gameStarted && !globalState.playbackState.paused && !gameFinished}
         sx={{
           position: "absolute",
           left: deckLeft + deckWidthPixels + canvasSpacing,
@@ -1250,17 +1373,34 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           whiteSpace: "nowrap",
         }
       )}
+
+      {createButton("increaseDeckWidthButton",
+        <AddIcon sx={{fontSize: "1em"}}></AddIcon>, 
+        !gameStarted ? (deckLeft + deckWidthPixels + canvasSpacing) : (canvasWidth + canvasSpacing),
+        playerDeckBottom - buttonSize,
+        () => {
+          const newValue = Math.min(layoutInfo.deckWidth + 1, CL.deckWidth.max);
+          setLayoutInfo({
+            ...layoutInfo,
+            deckWidth: newValue
+          });
+          docCookies.setItem("deckWidth", newValue);
+        },
+        gameStarted || layoutInfo.deckWidth >= CL.deckWidth.max
+      )}
       {createButton("decreaseDeckWidthButton",
         <RemoveIcon sx={{fontSize: "1em"}}></RemoveIcon>, 
         !gameStarted ? (deckLeft + deckWidthPixels + canvasSpacing) : (canvasWidth + canvasSpacing),
         playerDeckBottom - buttonSize * 2 - canvasSpacing,
         () => {
+          const newValue = Math.max(layoutInfo.deckWidth - 1, CL.deckWidth.min);
           setLayoutInfo({
             ...layoutInfo,
-            deckWidth: layoutInfo.deckWidth - 1
+            deckWidth: newValue
           });
+          docCookies.setItem("deckWidth", newValue);
         },
-        gameStarted || (layoutInfo.deckWidth <= 1),
+        gameStarted || (layoutInfo.deckWidth <= CL.deckWidth.min),
         "warning"
       )}
       {createButton("increaseDeckHeightButton",
@@ -1268,24 +1408,28 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         deckLeft + deckWidthPixels - buttonSize, 
         !gameStarted ? (playerDeckBottom + canvasSpacing) : (canvasHeight + canvasSpacing),
         () => {
+          const newValue = Math.min(layoutInfo.deckHeight + 1, CL.deckHeight.max);
           setLayoutInfo({
             ...layoutInfo,
-            deckHeight: layoutInfo.deckHeight + 1
+            deckHeight: newValue
           });
+          docCookies.setItem("deckHeight", newValue);
         },
-        gameStarted || layoutInfo.deckHeight >= 5
+        gameStarted || layoutInfo.deckHeight >= CL.deckHeight.max
       )}
       {createButton("decreaseDeckHeightButton",
         <RemoveIcon sx={{fontSize: "1em"}}></RemoveIcon>, 
         deckLeft + deckWidthPixels - buttonSize * 2 - canvasSpacing, 
         !gameStarted ? (playerDeckBottom + canvasSpacing) : (canvasHeight + canvasSpacing),
         () => {
+          const newValue = Math.max(layoutInfo.deckHeight - 1, CL.deckHeight.min);
           setLayoutInfo({
             ...layoutInfo,
-            deckHeight: layoutInfo.deckHeight - 1
+            deckHeight: newValue
           });
+          docCookies.setItem("deckHeight", newValue);
         },
-        gameStarted || layoutInfo.deckHeight <= 1,
+        gameStarted || layoutInfo.deckHeight <= CL.deckHeight.min,
         "warning"
       )}
       {createText("deckCardNumberText", 
@@ -1562,6 +1706,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
             ...layoutInfo,
             hasOpponent: !layoutInfo.hasOpponent
           });
+          docCookies.setItem("hasOpponent", layoutInfo.hasOpponent ? "F" : "T");
         }}
       >
         <OpponentIcon sx={{
@@ -1584,15 +1729,17 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         size="small"
         label="平均反应时间"
         className="chinese"
-        inputProps={{min: 1, max: 20, step: 0.5}}
+        inputProps={{...CL.opponentTimeAverage}}
         disabled={gameStarted}
         type="number"
         value={opponentSettings.timeAverage}
         onChange={(e) => {
+          const newValue = clClamp(parseFloat(e.target.value), CL.opponentTimeAverage);
           setOpponentSettings({
             ...opponentSettings,
-            timeAverage: parseFloat(e.target.value),
+            timeAverage: newValue
           });
+          docCookies.setItem("opponentTimeAverage", newValue);
         }}
       >
       </TextField>}
@@ -1606,13 +1753,15 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         className="chinese"
         type="number"
         value={opponentSettings.timeDeviation}
-        inputProps={{min: 0, max: 10, step: 0.5}}
+        inputProps={{...CL.opponentTimeDeviation}}
         disabled={gameStarted}
         onChange={(e) => {
+          const newValue = clClamp(parseFloat(e.target.value), CL.opponentTimeDeviation);
           setOpponentSettings({
             ...opponentSettings,
-            timeDeviation: parseFloat(e.target.value)
+            timeDeviation:newValue
           });
+          docCookies.setItem("opponentTimeDeviation", newValue);
         }}
       >
       </TextField>}
@@ -1626,13 +1775,15 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         className="chinese"
         type="number"
         value={opponentSettings.mistakeRate}
-        inputProps={{min: 0, max: 1, step: 0.1}}
+        inputProps={{...CL.opponentMistakeRate}}
         disabled={gameStarted}
         onChange={(e) => {
+          const newValue = clClamp(parseFloat(e.target.value), CL.opponentMistakeRate);
           setOpponentSettings({
             ...opponentSettings,
-            mistakeRate: parseFloat(e.target.value),
+            mistakeRate: newValue
           });
+          docCookies.setItem("opponentMistakeRate", newValue);
         }}
       >
       </TextField>}
@@ -1652,6 +1803,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
             ...opponentSettings,
             traditionalMode: !opponentSettings.traditionalMode
           });
+          docCookies.setItem("traditionalMode", opponentSettings.traditionalMode ? "F" : "T");
         }}
       >
         <TraditionalIcon sx={{
@@ -1721,11 +1873,11 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
           onPreviousClick={globalMethods.onPreviousMusicClick}
           onNextClick={() => {
             globalMethods.onNextMusicClick();
-            settleRound();
+            if (!gameFinished) {settleRound();}
           }}
           onPauseClick={() => {
             globalMethods.onPauseMusicClick();
-            if (!roundInfo.opponentTimeoutSet) {
+            if (!roundInfo.opponentTimeoutSet && !gameFinished) {
               const playbackState = globalState.playbackState;
               if (playbackState.paused || playbackState.playbackPaused) {
                 newRound();

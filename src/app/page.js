@@ -68,7 +68,7 @@ const BoxPaper = ({ children, padding = 1}) => {
   </Box>
 }
 
-function loadCookies(data, getDefaultValue = false) {
+function loadMusicPlayerStateCookies(data, getDefaultValue = false) {
   let dataCharacters = data["data"];
   let characters = Object.keys(dataCharacters);
   
@@ -219,14 +219,15 @@ export default function Page() {
   useEffect(() => {
 
     {
+      let loaded = {};
       try {
         let cookieCardPrefix = docCookies.getItem("cardPrefix");
         if (cookieCardPrefix !== null) {
           if (isCardPrefixValid(cookieCardPrefix)) {
-            setOptionState({
-              ...optionState,
+            loaded = {
+              ...loaded,
               cardPrefix: cookieCardPrefix
-            });
+            };
           } else {
             throw "Invalid card prefix";
           }
@@ -235,8 +236,27 @@ export default function Page() {
         console.error("Error loading cardPrefix from cookies", e);
         docCookies.removeItem("cardPrefix");
       }
+
+      let cookieCountdown = docCookies.getItem("countdown");
+      if (cookieCountdown === "T") {loaded.countdown = true;}
+      else if (cookieCountdown === "F") {loaded.countdown = false;}
+      else {
+        docCookies.removeItem("countdown");
+      }
+
+      let cookieRandomPlayPosition = docCookies.getItem("randomPlayPosition");
+      if (cookieRandomPlayPosition === "T") {loaded.randomPlayPosition = true;}
+      else if (cookieRandomPlayPosition === "F") {loaded.randomPlayPosition = false;}
+      else {
+        docCookies.removeItem("randomPlayPosition");
+      }
+
+      setOptionState({
+        ...optionState,
+        ...loaded
+      });
+      
     }
-  
 
     if (!isLoading) return;
     fetch('data.json')
@@ -279,7 +299,7 @@ export default function Page() {
 
         setData(data);
 
-        let loadedCookies = loadCookies(data);
+        let loadedCookies = loadMusicPlayerStateCookies(data);
         setMusicPlayerState(loadedCookies);
 
         setIsLoading(false);
@@ -620,12 +640,14 @@ export default function Page() {
                       ...optionState,
                       randomPlayPosition: !optionState.randomPlayPosition
                     });
+                    docCookies.setItem("randomPlayPosition", optionState.randomPlayPosition ? "F" : "T");
                   }}>随机位置播放</Button>
                   <Button className="chinese" variant={optionState.countdown ? "contained" : "outlined"} color="primary" onClick={() => {
                     setOptionState({
                       ...optionState,
                       countdown: !optionState.countdown
                     });
+                    docCookies.setItem("countdown", optionState.countdown ? "F" : "T");
                   }}>倒计时</Button>
                 </Stack>
                 <TextField id="playLengthTextField" label="播放时长（0 = 无限）" variant="standard"
