@@ -170,7 +170,7 @@ const MusicIdSelectPanel = ({data, globalState, globalMethods}) => {
       let character = currentPlaying;
       let index = (playOrder.indexOf(character) + 1) % playOrder.length;
       while (!characterInPlaylist(newMusicPlayerState, playOrder[index])) {
-        console.log(playOrder[index], "not in playlist");
+        // console.log(playOrder[index], "not in playlist");
         index = (index + 1) % playOrder.length;
       }
       playMusicOfCharacter(playOrder[index], {}, newMusicPlayerState);

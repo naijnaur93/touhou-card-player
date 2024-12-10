@@ -9,7 +9,7 @@ import docCookies from "./docCookies";
 import MusicPlayerPanel from "./musicPlayerPanel";
 import { keyframes } from "@mui/material/styles";
 import TransitionTab from "./transitionTab";
-import { getMusicFilename, getMusicName } from "./utils";
+import { getMusicFilename, getMusicName, hashToInt } from "./utils";
 import PlayList from "./playList";
 import { PlaySlider, PlayControls } from "./playControls";
 import MusicIdSelectPanel from "./musicIdSelectPanel";
@@ -182,6 +182,8 @@ export default function Page() {
     "randomPlayPosition": false,
     "countdown": false,
     "playbackTime": 0,
+    "glitch": false,
+    "loadTime": 0,
   });
   const audioRef = useRef(null);
   const audioCountdownRef = useRef(null);
@@ -204,21 +206,26 @@ export default function Page() {
   }, [tabValue])
 
   useEffect(() => {
-    // set relative root
-    let entirePath = window.location.href;
-    console.log("Entire path is", entirePath);
-    // relative root is one level up from the current page
-    let relativeRoot = entirePath;
-    console.log("Relative root is", relativeRoot);
-    setOptionState({
-      ...optionState,
-      relativeRoot: relativeRoot + "/"
-    })
-  }, [])
-
-  useEffect(() => {
 
     {
+
+      const entirePath = window.location.href;
+
+      // remove query
+      let relativeRoot = entirePath;
+      if (entirePath.includes("?")) {
+        relativeRoot = entirePath.substring(0, entirePath.indexOf("?"));
+      }
+
+      console.log("relativeRoot", relativeRoot);
+  
+      const query = window.location.search;
+      const params = new URLSearchParams(query);
+      let glitch = false;
+      if (params.has("g")) {
+        glitch = true;
+      }
+
       let loaded = {};
       try {
         let cookieCardPrefix = docCookies.getItem("cardPrefix");
@@ -253,7 +260,10 @@ export default function Page() {
 
       setOptionState({
         ...optionState,
-        ...loaded
+        ...loaded,
+        relativeRoot: relativeRoot + "/",
+        glitch: glitch,
+        loadTime: Date.now()
       });
       
     }
