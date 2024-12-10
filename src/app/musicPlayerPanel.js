@@ -7,6 +7,7 @@ import CardComponent from "./cardComponent";
 import { forwardRef } from "react";
 import TransitionTab from "./transitionTab";
 import * as utils from "./utils";
+import { cardGlitchTransform } from "./utils";
 import { useTheme } from "@mui/material/styles";
 import { PlayControls, PlaySlider } from "./playControls";
 import { useSwipeable } from "react-swipeable";
@@ -60,7 +61,8 @@ const ProminentCardGroup = forwardRef(({
               marginLeft: (index === 0 ? "0%" : (isFocused ? "2%" : "-20%")) + " !important",
               zIndex: filenames.length - index,
               transition: "margin-left 0.8s",
-              transitionDelay: "0.3s"
+              transitionDelay: "0.3s",
+              transform: !optionState.glitch ? "none" : cardGlitchTransform(optionState.loadTime, filename),
             }}
           />
         })}
@@ -220,7 +222,8 @@ const QueueCardGroup = forwardRef(({
                   backgroundColor: musicPlayerState.temporarySkip[character] ? "lightgray" : "white",
                   ":hover": {
                     backgroundColor: musicPlayerState.temporarySkip[character] ? "#DAEBEB" : "lightcyan"
-                  }
+                  },
+                  transform: !optionState.glitch ? "none" : cardGlitchTransform(optionState.loadTime, filename),
                 }}
                 imageStyles={{
                   filter: musicPlayerState.temporarySkip[character] ? "grayscale(100%)" : "none"
@@ -416,11 +419,9 @@ export default function MusicPlayerPanel({
           ref={counter === 0 ? prominentCardGroupFirstItemRef : null}
           empty={empty}
           onSwipeLeft={() => {
-            console.log("Swipe left");
             onNextClick();
           }}
           onSwipeRight={() => {
-            console.log("Swipe right");
             onPreviousClick();
           }}
         />

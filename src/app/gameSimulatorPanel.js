@@ -20,6 +20,7 @@ import {
 } from "@mui/icons-material";
 import { PlayControls } from "./playControls";
 import docCookies from "./docCookies";
+import { cardGlitchTransform } from "./utils";
 
 const clClamp = (v, cl) => {
   if (v > cl.max) return cl.max;
@@ -216,7 +217,6 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
         }
       }
 
-      console.log(loaded);
       if (Object.keys(loaded).length > 0) {
         additional = loaded;
       }
@@ -669,7 +669,7 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
     let counter = 0;
     const cardHeight = middlebandCardHeight;
     const cardWidth = cardHeight * cardAspectRatio;
-    const cardOverlap = cardWidth * 0.15;
+    const cardOverlap = cardWidth * 0.35;
     const canSelectMoreCards = playerDeckFilled.includes(false) || (layoutInfo.hasOpponent && opponentDeckFilled.includes(false));
     Object.entries(cardRenderInfos).forEach(([character, characterCardInfos]) => {
       characterCardInfos.forEach((cardRenderInfo) => {
@@ -797,6 +797,19 @@ const GameSimulatorPanel = ({ renderContents, data, globalState, globalMethods }
   });
   Object.entries(cardRenderInfos).forEach(([character, cardInfos]) => {
     cardInfos.forEach((cardInfo, index) => {
+      const glitchTransform = !optionState.glitch ? "" : cardGlitchTransform(optionState.loadTime, cardInfo.filename);
+      if (cardInfo.paperStyles.transform) {
+        cardInfo.paperStyles.transform += " " + glitchTransform;
+      } else {
+        cardInfo.paperStyles.transform = glitchTransform;
+      }
+      if (cardInfo.paperStyles["&:hover"]) {
+        if (cardInfo.paperStyles["&:hover"].transform) {
+          cardInfo.paperStyles["&:hover"].transform += " " + glitchTransform;
+        } else {
+          cardInfo.paperStyles["&:hover"].transform = glitchTransform;
+        }
+      }
       renderedCards.push(<Box
         key={cardInfo.key}
         sx={{

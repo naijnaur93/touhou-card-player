@@ -2,7 +2,7 @@
 
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
-import { useRef, useEffect, forwardRef, useState } from "react";
+import { useRef, useEffect, forwardRef } from "react";
 
 const CardComponent = forwardRef(({
   children,

@@ -1,3 +1,16 @@
+function hashToInt(timestamp, strKey, min, max) {
+  let hash = 0;
+  for (let i = 0; i < strKey.length; i++) {
+    hash = strKey.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  hash = hash + timestamp;
+  hash = Math.abs(hash);
+  return min + hash % (max - min);
+}
+
+function cardGlitchTransform(timestamp, strKey) {
+  return "rotate(" + hashToInt(timestamp, strKey, -5, 5) + "deg) scale(0.96)";
+}
 
 function getMusicName(musicFilename) {
   let musicName = musicFilename;
@@ -59,5 +72,5 @@ function createWidthResponsiveStyle(small, trans, large) {
 }
 
 export {
-  getMusicName, getMusicFilename, createWidthResponsiveStyle
+  getMusicName, getMusicFilename, createWidthResponsiveStyle, hashToInt, cardGlitchTransform
 }
