@@ -1,9 +1,12 @@
 # Touhou Card Player
-Well, this one does as the name says, deployed by at [Github Pages](https://lightbulb128.github.io/touhou-card-player/).
+Well, this one does as the name says.
+
+- Live webpage deployed at [Github Pages](https://lightbulb128.github.io/touhou-card-player/). 
+- Usage video placed at [Bilibili](https://www.bilibili.com/video/BV139qTY6Ez6).
+- Example *offline-game* video placed at [Bilibili](https://www.bilibili.com/video/BV1JVzEYsEzF).
+- Also, try out this "glitch mode" with a query param [`/?g`](https://lightbulb128.github.io/touhou-card-player/?g)
 
 I am a great fan of Alice Margatroid so I have a button placed at the page top which takes you to Alice's music!
-
-Example *how-to-play* video uploaded at [Bilibili](https://www.bilibili.com/video/BV1JVzEYsEzF).
 
 ## For development
 
